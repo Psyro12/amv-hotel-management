@@ -1,0 +1,146 @@
+/* --- Styles for Left Side (Personal Info) --- */
+        .personal-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        .signin-btn {
+            background-color: #f0f0f0;
+            color: #333;
+            font-size: 0.85rem;
+            padding: 8px 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .form-row { display: grid; gap: 20px; margin-bottom: 20px; }
+        .row-name { grid-template-columns: 1fr 2fr 2fr; }
+        .row-thirds { grid-template-columns: 1fr 1fr 1fr; }
+        .row-halves { grid-template-columns: 1fr 1fr; }
+        .form-group label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: #333; font-weight: 600; }
+        .required-star { color: #e74c3c; margin-left: 2px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 10px; border: 1px solid #ddd;
+            border-radius: 4px; font-family: 'Montserrat', sans-serif; background-color: #fff;
+        }
+        .checkbox-group { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+        .checkbox-group input { width: auto; }
+
+        /* --- STYLES FOR BOOKING SUMMARY (Right Side) --- */
+        .summary-card {
+            background-color: #fff; /* Darker Gold background */
+            border-radius: 4px;
+            overflow: hidden;
+            font-family: 'Montserrat', sans-serif;
+            color: #333;
+            padding-bottom: 20px;
+        }
+        .summary-card h3 {
+            /* background-color: #C18800; */
+            color: #333;
+            padding: 15px;
+            margin: 0;
+            font-weight: 600;
+            font-size: 1.4rem;
+        }
+        .summary-section {
+            background-color: #E0E0E0;
+            padding: 0;
+            margin-bottom: 10px;
+        }
+        .summary-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #E0E0E0;
+            padding: 10px 15px;
+            
+            font-size: 0.9rem;
+            color: #333;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .edit-link {
+            text-decoration: underline;
+            color: #333;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .summary-content {
+            background-color: #EBEBEB;
+            padding: 15px;
+            display: none; /* Hidden by default via CSS */
+        }
+        /* Only items with this class will show */
+        .summary-content.active { display: block; }
+
+        .summary-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+        .summary-line span:first-child { color: #555; }
+        .summary-line span:last-child {
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            text-align: right; 
+            max-width: 60%;
+        }
+
+        .booked-rooms-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 15px 5px 15px;
+            color: white;
+            font-size: 1.1rem;
+        }
+        .reset-btn {
+            background-color: #999;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .total-charge-bar {
+            background-color: #999;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.2rem;
+            margin: 10px 15px;
+        }
+        .continue-btn-orange {
+            display: block;
+            width: calc(100% - 30px);
+            margin: 10px 15px;
+            background-color: #FFA500;
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            text-align: center;
+        }
+        .continue-btn-orange:hover { background-color: #e69500; }
+
+        @media (max-width: 768px) {
+            .row-name, .row-thirds, .row-halves { grid-template-columns: 1fr; }
+            .personal-info-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+        }

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jelly Loader Test</title>
+
+    <script type="module" src="https://cdn.jsdelivr.net/npm/ldrs/dist/auto/jelly.js"></script>
+
+    <style>
+        /* Basic Layout */
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            gap: 20px;
+        }
+
+        /* The Button Style */
+        .ab-submit-btn {
+            width: 250px;
+            padding: 12px;
+            background-color: #ffffff;
+            color: #555;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: not-allowed;
+            opacity: 1;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            
+            /* Flexbox to align Loader and Text */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px; 
+        }
+    </style>
+</head>
+<body>
+
+    <h3>Button State: "Processing..."</h3>
+
+    <button class="ab-submit-btn" disabled>
+        
+        <l-jelly
+          size="24"
+          speed="0.9"
+          color="#B88E2F" 
+        ></l-jelly>
+
+        <span>Processing...</span>
+
+    </button>
+
+    <p style="color:#888; font-size: 0.85rem; margin-top: 20px;">
+        (Using ldrs &lt;l-jelly&gt; component)
+    </p>
+
+</body>
+</html>

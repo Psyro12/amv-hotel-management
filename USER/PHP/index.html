@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxury Scroll Effect</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: 'Georgia', serif;
+            color: #333;
+            scroll-behavior: smooth;
+        }
+
+        /* 1. FIXED BACKGROUND EFFECT (The "Curtain" Reveal) */
+        .parallax-section {
+            height: 100vh;
+            background-attachment: fixed; /* This is the key for the fixed effect */
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bg-1 { background-image: url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1920&q=80'); }
+        .bg-2 { background-image: url('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1920&q=80'); }
+
+        .title-overlay {
+            color: white;
+            font-size: 3rem;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+            text-transform: uppercase;
+            letter-spacing: 5px;
+        }
+
+        /* 2. CONTENT SECTIONS (The white slides) */
+        .content-section {
+            padding: 100px 20px;
+            background: white;
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* 3. SCROLL REVEAL ANIMATIONS */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 1s ease-out;
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        h2 { font-size: 2.5rem; color: #b89255; } /* Gold-ish hotel color */
+        p { font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+    <div class="parallax-section bg-1">
+        <h1 class="title-overlay">The Grand Hotel</h1>
+    </div>
+
+    <div class="content-section">
+        <div class="reveal">
+            <h2>Heritage and Elegance</h2>
+            <p>Experience the timeless beauty of our historic lobby. Just like the video you shared, this text slides into view smoothly as you scroll down, creating a premium feel.</p>
+        </div>
+    </div>
+
+    <div class="parallax-section bg-2">
+        <h1 class="title-overlay">Luxury Suites</h1>
+    </div>
+
+    <div class="content-section">
+        <div class="reveal">
+            <h2>A True Heart of Hospitality</h2>
+            <p>By using fixed backgrounds, we create a "window" effect where the images appear to be behind the page content.</p>
+        </div>
+    </div>
+
+    <script>
+        // JAVASCRIPT FOR SCROLL REVEAL
+        const observerOptions = {
+            threshold: 0.2 // Trigger when 20% of the element is visible
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, observerOptions);
+
+        // Apply observer to all elements with the "reveal" class
+        document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+    </script>
+
+</body>
+</html>

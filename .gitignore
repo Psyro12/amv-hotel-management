@@ -1,0 +1,26 @@
+# Database connections & config
+db_connect.php
+db_connect_2.php
+db_connect_3.php
+connection.php
+config.php
+.env
+
+# Uploads & Assets
+uploads/
+image-storage/
+IMG/
+room_includes/uploads/
+
+# Backups & Copies
+backup/
+* copy.php
+* copy/
+API copy/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large binaries
+*.apk

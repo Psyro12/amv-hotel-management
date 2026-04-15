@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Single Field Address Search</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            width: 450px;
+            max-width: 90%;
+        }
+
+        h2 { margin-top: 0; color: #333; margin-bottom: 20px; font-size: 1.2rem; }
+
+        /* --- THE SEARCH WRAPPER --- */
+        .search-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            pointer-events: none;
+        }
+
+        /* The Single Input Field */
+        input[type="text"] {
+            width: 100%;
+            padding: 15px 15px 15px 45px; /* Left padding for icon */
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.2s;
+            background-color: #f9f9f9;
+        }
+
+        input[type="text"]:focus {
+            background-color: #fff;
+            border-color: #9e8236; /* Gold */
+            box-shadow: 0 4px 12px rgba(158, 130, 54, 0.15);
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #9e8236;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin { 0% { transform: translateY(-50%) rotate(0deg); } 100% { transform: translateY(-50%) rotate(360deg); } }
+
+        /* --- RESULTS DROPDOWN --- */
+        .results-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border: 1px solid #eee;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-height: 280px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .result-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f5f5f5;
+            cursor: pointer;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #444;
+            transition: background 0.1s;
+        }
+
+        .result-item:hover {
+            background-color: #fcf8e3; /* Light gold tint */
+            color: #000;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Highlight the main part of the address */
+        .result-main {
+            font-weight: 700;
+            display: block;
+            color: #333;
+            margin-bottom: 2px;
+        }
+        
+        .result-sub {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        /* Display Box (For demo purposes) */
+        .output-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: #eefcf1;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            color: #155724;
+            font-size: 0.85rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2><i class="fa-solid fa-map-location-dot"></i> Address Search</h2>
+        
+        <div class="search-wrapper">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            
+            <input type="text" id="fullAddressInput" placeholder="Start typing address..." autocomplete="off">
+            
+            <div class="spinner" id="loader"></div>
+            
+            <div class="results-list" id="resultsList"></div>
+        </div>
+
+        <input type="hidden" id="finalAddress" name="address">
+
+        <div class="output-box" id="outputBox">
+            <strong>Selected:</strong> <span id="outputText"></span>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById('fullAddressInput');
+        const results = document.getElementById('resultsList');
+        const loader = document.getElementById('loader');
+        const hiddenInput = document.getElementById('finalAddress');
+        const outputBox = document.getElementById('outputBox');
+        const outputText = document.getElementById('outputText');
+        
+        let debounceTimer;
+
+        input.addEventListener('input', function() {
+            const query = this.value.trim();
+            
+            // Clear previous search timer
+            clearTimeout(debounceTimer);
+            outputBox.style.display = 'none';
+
+            if (query.length < 3) {
+                results.style.display = 'none';
+                return;
+            }
+
+            // Wait 600ms after typing stops before searching (Optimized)
+            debounceTimer = setTimeout(() => {
+                searchAddress(query);
+            }, 600);
+        });
+
+        function searchAddress(query) {
+            loader.style.display = 'block';
+
+            // API: Nominatim OpenStreetMap
+            // NEW (Calls your local PHP proxy)
+const url = `search_address.php?q=${encodeURIComponent(query)}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    loader.style.display = 'none';
+                    renderResults(data);
+                })
+                .catch(err => {
+                    console.error(err);
+                    loader.style.display = 'none';
+                });
+        }
+
+        function renderResults(data) {
+            results.innerHTML = '';
+
+            if (data.length === 0) {
+                const noResult = document.createElement('div');
+                noResult.className = 'result-item';
+                noResult.innerText = 'No address found. Please try again.';
+                noResult.style.color = '#888';
+                noResult.style.cursor = 'default';
+                results.appendChild(noResult);
+                results.style.display = 'block';
+                return;
+            }
+
+            data.forEach(place => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+
+                // Format the display nicely
+                // Usually display_name is long, let's try to split it visually
+                const parts = place.display_name.split(',');
+                const mainPart = parts[0]; // Usually the Building or Street
+                const subPart = parts.slice(1).join(', '); // The rest (City, Province)
+
+                div.innerHTML = `
+                    <span class="result-main">${mainPart}</span>
+                    <span class="result-sub">${subPart}</span>
+                `;
+
+                div.onclick = () => {
+                    // 1. Fill the input with the full clean address
+                    input.value = place.display_name;
+                    
+                    // 2. Store it in hidden input for database
+                    hiddenInput.value = place.display_name;
+                    
+                    // 3. Show feedback
+                    outputText.innerText = place.display_name;
+                    outputBox.style.display = 'block';
+                    
+                    // 4. Hide list
+                    results.style.display = 'none';
+                };
+
+                results.appendChild(div);
+            });
+
+            results.style.display = 'block';
+        }
+
+        // Close dropdown if clicked outside
+        document.addEventListener('click', function(e) {
+            if (e.target !== input && e.target !== results) {
+                results.style.display = 'none';
+            }
+        });
+    </script>
+
+</body>
+</html>

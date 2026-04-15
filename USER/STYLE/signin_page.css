@@ -1,0 +1,796 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Montserrat', sans-serif;
+}
+
+body {
+  background: #EBD9D9;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* Header */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 45px;
+  /* reduced from 15px 40px */
+  background: #2C1045;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+
+/* Left side: Logo + Name */
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Logo */
+.logo-container img {
+  height: 35px;
+  /* was 50px */
+}
+
+
+.logo-text {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.logo-text span:first-child {
+  font-size: 18px;
+  color: #fff;
+  /* white for contrast */
+}
+
+.logo-text span:last-child {
+  font-size: 12px;
+  font-weight: 400;
+  color: #ddd;
+  /* lighter gray for contrast */
+}
+
+/* Right side: Navigation */
+nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+nav a {
+  text-decoration: none;
+  font-size: 13px;
+  color: #fff;
+  /* white text */
+  font-weight: 500;
+  transition: color 0.2s ease-in-out;
+}
+
+/* nav a:hover {
+  color: #f1c40f;
+  gold hover
+} */
+ 
+
+/* Icon container */
+.nav-icons {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.icon-circle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid #f1c40f;
+  border-radius: 50%;
+  font-size: 14px;
+  color: #f1c40f;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.icon-circle:hover {
+  border-color: #a58d22ff;
+  color: #a58d22ff;
+}
+
+/* Hero Section */
+.hero {
+  height: 95vh;
+  background: url("../../IMG/hotel_background.png") no-repeat center center/cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  color: #fff;
+  position: relative;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 700px;
+  padding: 20px;
+}
+
+.hero h1 {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.hero p {
+  font-size: 18px;
+  margin-bottom: 25px;
+}
+
+.btn {
+  display: inline-block;
+  padding: 12px 25px;
+  background: #f1c40f;
+  color: #2C1045;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  background: #d4ac0d;
+}
+
+/* Features Section */
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  padding: 50px 40px;
+  /* background: #fff; */
+}
+
+.feature {
+  background: #f9f9f9;
+  padding: 30px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.feature i {
+  font-size: 32px;
+  color: #f1c40f;
+  margin-bottom: 15px;
+}
+
+.feature h3 {
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.feature p {
+  font-size: 14px;
+  color: #666;
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 20px;
+  background: #2C1045;
+  color: #fff;
+  font-size: 14px;
+}
+
+/* Introduction Section */
+.intro {
+  /* background: #fff; */
+  padding: 60px 40px;
+}
+
+.intro-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+  flex-wrap: wrap;
+  /* mobile responsive */
+}
+
+.intro-text {
+  flex: 1;
+}
+
+.intro-text h2 {
+  font-size: 32px;
+  color: #f1c40f;
+  margin-bottom: 15px;
+}
+
+.intro-text p {
+  font-size: 16px;
+  color: #444;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.intro-text .btn {
+  background: #2C1045;
+  color: #fff;
+}
+
+.intro-text .btn:hover {
+  background: #431e67;
+}
+
+.intro-image {
+  flex: 1;
+  text-align: center;
+}
+
+.intro-image img {
+  max-width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* Foods Section */
+.foods {
+  /* background: #EBD9D9; */
+  padding: 60px 40px;
+  text-align: center;
+}
+
+.foods .section-title {
+  font-size: 32px;
+  color: #2C1045;
+  margin-bottom: 10px;
+}
+
+.foods .section-subtitle {
+  font-size: 16px;
+  color: #555;
+  margin-bottom: 40px;
+}
+
+.food-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 25px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.food-item img {
+  width: 100%;
+  height: 45%;
+  border-radius: 10px;
+  margin-bottom: 15px;
+}
+
+.food-item h3 {
+  font-size: 20px;
+  color: #2C1045;
+  margin-bottom: 10px;
+}
+
+.food-item p {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.food-item .price {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: #f1c40f;
+}
+
+/* Food toggle button */
+.food-toggle {
+  text-align: center;
+  margin-top: 20px;
+}
+
+
+
+/* Rooms Section */
+.rooms {
+  /* background: #fff; */
+  padding: 60px 40px;
+  text-align: center;
+}
+
+/* Rooms section title & subtitle spacing */
+.rooms .section-title {
+  font-size: 32px;
+  color: #2C1045;
+  margin-bottom: 10px;
+}
+
+.rooms .section-subtitle {
+  font-size: 16px;
+  color: #555;
+  margin-bottom: 40px;
+}
+
+.room-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 25px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.room-item img {
+  width: 100%;
+  height: 45%;
+  border-radius: 10px;
+  margin-bottom: 15px;
+}
+
+.room-item h3 {
+  font-size: 20px;
+  color: #2C1045;
+  margin-bottom: 10px;
+}
+
+.room-item p {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.room-item .btn {
+  display: inline-block;
+  padding: 10px 20px;
+  background: #f1c40f;
+  color: #2C1045;
+  font-weight: 600;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background 0.3s ease;
+}
+
+.room-item .btn:hover {
+  background: #d4ac0d;
+}
+
+.hidden {
+  display: none;
+}
+
+.show-more-container {
+  margin-top: 25px;
+}
+
+.show-more-container .btn {
+  background: #2C1045;
+  color: #fff;
+  border-radius: 6px;
+  padding: 12px 25px;
+  cursor: pointer;
+  border: none;
+}
+
+.show-more-container .btn:hover {
+  background: #f1c40f;
+  color: #2C1045;
+}
+
+.room-toggle {
+  text-align: center;
+  margin-top: 20px;
+}
+
+/* Event Place Section */
+.event-place {
+  padding: 60px 40px;
+  background: #EBD9D9;
+  text-align: center;
+}
+
+.event-card {
+  position: relative;
+  width: 100%;
+  max-width: 1000px;
+  /* aligns with ~4 cards width */
+  margin: 30px auto 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.event-card img {
+  width: 100%;
+  height: 400px;
+  object-fit: cover;
+  display: block;
+}
+
+/* Overlay for content */
+.event-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(44, 16, 69, 0.6);
+  /* dark overlay */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  padding: 20px;
+  text-align: center;
+}
+
+.event-overlay h3 {
+  font-size: 28px;
+  margin-bottom: 15px;
+}
+
+.event-overlay p {
+  font-size: 16px;
+  margin-bottom: 15px;
+  max-width: 700px;
+}
+
+.event-overlay .contact-number {
+  font-weight: 600;
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+
+.event-overlay .btn {
+  background: #f1c40f;
+  color: #2C1045;
+  font-weight: 600;
+  padding: 12px 25px;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.event-overlay .btn:hover {
+  background: #d4ac0d;
+}
+
+/* Foods / Rooms */
+.food-item,
+.room-item {
+  background: #f9f9f9;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  transition: transform 0.35s ease, box-shadow 0.35s ease, opacity 0.35s ease, max-height 0.5s ease;
+  will-change: transform, box-shadow, opacity, max-height;
+}
+
+.food-item:hover,
+.room-item:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
+/* Hidden by default */
+.food-item.extra,
+.room-item.extra {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* prevents hover glitch when hidden */
+}
+
+/* When visible */
+.food-item.extra.show,
+.room-item.extra.show {
+  max-height: 600px;
+  /* adjust as needed */
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Hide burger by default */
+.burger-menu {
+  position: relative;
+  display: none;
+  cursor: pointer;
+  font-size: 22px;
+  color: #f1c40f;
+}
+
+.burger-menu .dropdown {
+  display: none;
+  position: absolute;
+  right: -15px;
+  top: 55px;
+  background: #2C1045;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 160px;
+  overflow: hidden;
+  z-index: 100;
+}
+
+.burger-menu .dropdown a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  text-decoration: none;
+  color: #fff;
+  font-size: 12px;
+  transition: background 0.3s;
+}
+
+.burger-menu .dropdown i {
+  color: #f1c40f;
+}
+
+.burger-menu .dropdown a:hover {
+  background: #f1c40f80;
+  border-radius: 8px;
+
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .desktop-icons {
+    display: none;
+  }
+
+  header {
+    padding: 15px 20px;
+  }
+
+  .burger-menu {
+    display: block;
+  }
+}
+
+/* Container */
+.profile-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dropdown box */
+.profile-menu {
+  display: none;
+  /* hidden by default */
+  position: absolute;
+  top: 75px;
+  /* below the profile icon */
+  right: 10px;
+  background: #2C1045;
+  color: #333;
+  min-width: 280px;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+/* Text inside */
+.profile-menu p {
+  color: #fff;
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+/* Logout button */
+.profile-menu .logout-btn {
+  margin-top: 30px;
+  width: 100%;
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.profile-menu .logout-btn:hover {
+  background: #e74c3c;
+}
+
+.message-menu {
+  display: none;
+  /* hidden by default */
+  position: absolute;
+  top: 75px;
+  /* below the message icon */
+  right: 10px;
+  background: #2C1045;
+  color: #333;
+  min-width: 320px;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+/* Text inside */
+.message-menu p {
+  color: #fff;
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+/* Logout button */
+.message-menu .logout-btn {
+  margin-top: 30px;
+  width: 100%;
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.message-menu .logout-btn:hover {
+  background: #e74c3c;
+}
+
+.notification-menu {
+  display: none;
+  /* hidden by default */
+  position: absolute;
+  top: 75px;
+  /* below the notification icon */
+  right: 10px;
+  background: #2C1045;
+  color: #333;
+  min-width: 320px;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+/* Text inside */
+.notification-menu p {
+  color: #fff;
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+/* Logout button */
+.notification-menu .logout-btn {
+  margin-top: 30px;
+  width: 100%;
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.notification-menu .logout-btn:hover {
+  background: #e74c3c;
+}
+
+.profile-picture {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.profile-picture img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%; /* Makes it circular */
+  object-fit: cover;
+  border: 2px solid #ddd;
+}
+
+/* Message Items */
+.message-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.message-item i {
+  font-size: 32px;
+  margin-right: 10px;
+  color: #007BFF; /* blue icon for messages */
+}
+
+.message-info p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.message-info .time {
+  font-size: 12px;
+  color: #888;
+}
+
+/* Notification Items */
+.notification-item {
+  display: flex;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.notification-item i {
+  font-size: 20px;
+  margin-right: 10px;
+  color: #f1c40f; /* yellow/gold for notifications */
+}
+
+.notification-info p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.notification-info .time {
+  font-size: 12px;
+  color: #888;
+}
+
+/* Scroll Down Indicator */
+.scroll-indicator {
+  position: absolute;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 24px;
+  color: #fff;
+  cursor: pointer;
+  animation: bounce 1.5s infinite;
+}
+
+/* Bounce animation */
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  40% {
+    transform: translateX(-50%) translateY(10px);
+  }
+  60% {
+    transform: translateX(-50%) translateY(5px);
+  }
+}
+
+/* CSS to prevent scrolling when the modal is open */
+.modal-open {
+    overflow: hidden; /* This hides the scrollbar */
+    height: 100vh;    /* This prevents scrolling on the page content */
+}
