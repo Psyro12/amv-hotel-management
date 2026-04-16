@@ -8524,9 +8524,79 @@
                 });
         }
 
-        // --- UPDATED REJECT FUNCTION (With Rotating Spinner) ---
+        // --- UPDATED REJECT FUNCTION (Enhanced UI & High Z-Index) ---
         async function rejectBooking(id, btnElement) {
-            if (!await showConfirm("Confirmation", "Are you sure you want to REJECT this booking?")) return;
+            const { value: rejectionData } = await Swal.fire({
+                title: '<span style="color:#EF4444; font-weight:700;">Reject Booking</span>',
+                icon: 'warning',
+                html: `
+                    <div style="text-align: left; font-family: 'Montserrat', sans-serif;">
+                        <p style="font-size: 0.9rem; color: #666; margin-bottom: 20px;">Please provide a reason for rejecting this reservation. This will be sent to the guest.</p>
+                        
+                        <div class="swal-field-group" style="margin-bottom: 15px;">
+                            <label style="display:block; font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#999; margin-bottom:8px; letter-spacing:0.5px;">Select a Suggested Reason:</label>
+                            <select id="swal-rejection-select" class="ab-select" style="width:100% !important; display: block !important; visibility: visible !important; opacity: 1 !important;">
+                                <option value="Invalid payment proof provided.">Invalid payment proof provided.</option>
+                                <option value="Requested rooms are no longer available for these dates.">Requested rooms are no longer available.</option>
+                                <option value="Duplicate booking detected.">Duplicate booking detected.</option>
+                                <option value="Incomplete guest information.">Incomplete guest information.</option>
+                                <option value="Other">Other (Provide custom reason below)</option>
+                            </select>
+                        </div>
+
+                        <div id="custom-reason-container" class="swal-field-group" style="display:none; margin-top: 15px;">
+                            <label style="display:block; font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#999; margin-bottom:8px; letter-spacing:0.5px;">Custom Reason / Additional Notes</label>
+                            <textarea id="swal-rejection-custom" class="ab-input" rows="4" 
+                                placeholder="Enter specific details or a custom reason here..." 
+                                style="width:100%; border-radius:12px; border:1px solid #E5E7EB; padding:15px; font-family:inherit; font-size:0.9rem; box-sizing:border-box; resize:none;"></textarea>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Confirm Rejection',
+                confirmButtonColor: '#EF4444',
+                cancelButtonText: 'Go Back',
+                cancelButtonColor: '#6B7280',
+                reverseButtons: true,
+                focusConfirm: false,
+                didOpen: () => {
+                    const container = Swal.getContainer();
+                    if (container) container.style.zIndex = '3000';
+                    
+                    const select = document.getElementById('swal-rejection-select');
+                    const customContainer = document.getElementById('custom-reason-container');
+                    
+                    // Show/Hide custom reason field based on selection
+                    select.addEventListener('change', (e) => {
+                        if (e.target.value === 'Other') {
+                            customContainer.style.display = 'block';
+                            document.getElementById('swal-rejection-custom').focus();
+                        } else {
+                            customContainer.style.display = 'none';
+                        }
+                    });
+                    
+                    // Default behavior
+                    if (select.value === 'Other') customContainer.style.display = 'block';
+                },
+                preConfirm: () => {
+                    const selected = document.getElementById('swal-rejection-select').value;
+                    const custom = document.getElementById('swal-rejection-custom').value.trim();
+                    
+                    if (selected === 'Other') {
+                        if (!custom) {
+                            Swal.showValidationMessage('Please type a custom reason.');
+                            return false;
+                        }
+                        return custom;
+                    }
+                    
+                    // If they typed something but DIDN'T select 'Other', we can append it or just use suggestion
+                    return custom ? (selected + " " + custom) : selected;
+                }
+            });
+
+            if (!rejectionData) return;
 
             // 1. LOCK UI GLOBALLY
             isDrawerBusy = true;
@@ -8534,18 +8604,21 @@
 
             // 2. Visual Loading State
             const originalContent = btnElement.innerHTML;
-            btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejecting...';
+            btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             btnElement.disabled = true;
             btnElement.style.opacity = '0.7';
 
             // Lock the container visuals
             const drawerBody = document.getElementById('pendingDrawerBody');
-            drawerBody.style.pointerEvents = 'none';
-            drawerBody.style.opacity = '0.8';
+            if (drawerBody) {
+                drawerBody.style.pointerEvents = 'none';
+                drawerBody.style.opacity = '0.8';
+            }
 
             const formData = new FormData();
             formData.append('id', id);
             formData.append('action', 'cancel');
+            formData.append('reason', rejectionData);
 
             fetch('update_arrival.php', {
                 method: 'POST',
@@ -8560,7 +8633,6 @@
                         fetchDashboardCards();
                     } else {
                         showError("Error: " + data.message);
-                        // Revert button
                         btnElement.innerHTML = originalContent;
                         btnElement.disabled = false;
                         btnElement.style.opacity = '1';
@@ -8568,13 +8640,11 @@
                 })
                 .catch(err => {
                     showError("System Error");
-                    // Revert button
                     btnElement.innerHTML = originalContent;
                     btnElement.disabled = false;
                     btnElement.style.opacity = '1';
                 })
                 .finally(() => {
-                    // 2. UNLOCK UI
                     if (drawerBody) {
                         drawerBody.style.pointerEvents = 'auto';
                         drawerBody.style.opacity = '1';
