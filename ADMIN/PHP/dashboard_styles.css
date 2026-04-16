@@ -1554,6 +1554,24 @@ canvas {
     border: 1px solid #C3E6CB;
 }
 
+.badge-partial {
+    background-color: #F0F9FF;
+    color: #075985;
+    border: 1px solid #BAE6FD;
+}
+
+.badge-rescheduled {
+    background-color: #F5F3FF;
+    color: #5B21B6;
+    border: 1px solid #DDD6FE;
+}
+
+.badge-extended {
+    background-color: #EEF2FF;
+    color: #3730A3;
+    border: 1px solid #C7D2FE;
+}
+
 .badge-cancelled {
     background-color: #F8D7DA;
     color: #721C24;

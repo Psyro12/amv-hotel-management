@@ -1,7 +1,16 @@
 <?php
 // guest_reschedule.php
+session_start();
 header('Content-Type: application/json');
 require 'db_connect.php';
+
+// 🟢 LOAD PHPMAILER
+require '../../USER/PHPMailer-master/src/Exception.php';
+require '../../USER/PHPMailer-master/src/PHPMailer.php';
+require '../../USER/PHPMailer-master/src/SMTP.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 // 1. INPUT VALIDATION
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -22,10 +31,15 @@ if (empty($ref) || empty($newCheckIn) || empty($newCheckOut)) {
 }
 
 // 2. FETCH CURRENT BOOKING DETAILS
-$sql = "SELECT b.id, b.check_in, b.created_at, b.status, b.arrival_status, b.total_price, br.room_id, r.price as price_per_night, r.name as room_name
+$sql = "SELECT b.id, b.user_id, b.check_in, b.check_out, b.created_at, b.status, b.arrival_status, b.total_price, b.payment_method,
+               br.room_id, r.price as price_per_night, r.name as room_name,
+               bg.first_name, bg.last_name, bg.email,
+               u.account_source
         FROM bookings b
         JOIN booking_rooms br ON b.id = br.booking_id
         JOIN rooms r ON br.room_id = r.id
+        JOIN booking_guests bg ON b.id = bg.booking_id
+        LEFT JOIN users u ON b.user_id = u.id
         WHERE b.booking_reference = ? LIMIT 1";
 
 $stmt = $conn->prepare($sql);
@@ -144,11 +158,93 @@ $updateBooking = $conn->prepare("UPDATE bookings SET check_in=?, check_out=?, to
 $updateBooking->bind_param("ssdi", $newCheckIn, $newCheckOut, $newTotal, $booking['id']);
 $updateBooking->execute();
 
+// 🟢 NEW: RECORD IN TRANSACTIONS TABLE
+$trans_type = 'Booking';
+$trans_status = 'Rescheduled';
+$payment_method = $booking['payment_method'] ?? 'N/A'; // 🟢 Use original payment method
+$user_id = $booking['user_id']; // 🟢 FIX: Use guest ID, not admin ID
+
+// 🟢 DEDUPLICATION CHECK: Prevent multiple recording
+$check_dup = $conn->prepare("SELECT id FROM transactions WHERE reference_id = ? AND status = ? AND amount = ? AND created_at > (NOW() - INTERVAL 10 SECOND)");
+$check_dup->bind_param("ssd", $ref, $trans_status, $newTotal);
+$check_dup->execute();
+if ($check_dup->get_result()->num_rows === 0) {
+    $ins_trans = $conn->prepare("INSERT INTO transactions (user_id, transaction_type, reference_id, amount, payment_method, status, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    $ins_trans->bind_param("issdss", $user_id, $trans_type, $ref, $newTotal, $payment_method, $trans_status);
+    $ins_trans->execute();
+}
+
 // Update Room ID if changed
 if ($newRoomId) {
     $updateRoom = $conn->prepare("UPDATE booking_rooms SET room_id=?, room_name=? WHERE booking_id=? AND room_id=?");
     $updateRoom->bind_param("isii", $newRoomId, $newRoomName, $booking['id'], $booking['room_id']);
     $updateRoom->execute();
+}
+
+// 🟢 7. NOTIFICATIONS & EMAIL
+if (!empty($booking['email'])) {
+    $notif_title = "Booking Rescheduled";
+    $notif_msg = "Your booking $ref has been rescheduled to $newCheckIn - $newCheckOut.";
+    $source = $booking['account_source'] ?? 'email';
+
+    $n_stmt = $conn->prepare("INSERT INTO guest_notifications (email, account_source, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 'booking', 0, NOW())");
+    $n_stmt->bind_param("ssss", $booking['email'], $source, $notif_title, $notif_msg);
+    $n_stmt->execute();
+}
+
+// Trigger real-time updates for dashboard
+$conn->query("UPDATE system_updates SET last_updated = CURRENT_TIMESTAMP WHERE category IN ('bookings', 'notifications')");
+
+// Send Email
+if (!empty($booking['email'])) {
+    try {
+        $mail = new PHPMailer(true);
+        $mail->isSMTP();
+        $mail->Host = 'smtp.gmail.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = 'periolarren@gmail.com'; 
+        $mail->Password = 'ftvp ilfl utmq pdgg'; 
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
+
+        $mail->SMTPOptions = array(
+            'ssl' => array(
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            )
+        );
+
+        $mail->setFrom('periolarren@gmail.com', "AMV Hotel Reservations");
+        $mail->addAddress($booking['email'], $booking['first_name'] . ' ' . $booking['last_name']);
+
+        $mail->isHTML(true);
+        $mail->Subject = "Reschedule Confirmation - Booking " . $ref;
+        
+        $mail->Body = "
+        <div style='font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px; overflow: hidden;'>
+            <div style='background-color: #3B82F6; padding: 20px; text-align: center; color: white;'>
+                <h2 style='margin:0;'>Booking Rescheduled</h2>
+            </div>
+            <div style='padding: 20px;'>
+                <p>Dear {$booking['first_name']},</p>
+                <p>Your booking <strong>$ref</strong> has been successfully rescheduled.</p>
+                <div style='background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;'>
+                    <p style='margin: 5px 0;'><strong>New Dates:</strong> $newCheckIn to $newCheckOut</p>
+                    <p style='margin: 5px 0;'><strong>Room:</strong> $newRoomName</p>
+                    <p style='margin: 5px 0;'><strong>New Total Price:</strong> ₱" . number_format($newTotal, 2) . "</p>
+                </div>
+                <p>If you have any questions, please contact us.</p>
+            </div>
+            <div style='background-color: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #666;'>
+                &copy; " . date('Y') . " AMV Hotel Management System. All rights reserved.
+            </div>
+        </div>";
+
+        $mail->send();
+    } catch (Exception $e) {
+        // Silently log or ignore email errors for now to not break the response
+    }
 }
 
 echo json_encode([

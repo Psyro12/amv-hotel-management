@@ -318,17 +318,21 @@ elseif ($action === 'extend') {
     $room_swaps = isset($_POST['room_swaps']) ? json_decode($_POST['room_swaps'], true) : [];
 
     // 1. Fetch All Rooms
-    $stmt_details = $conn->prepare("SELECT b.check_in, b.check_out, b.total_price, br.room_id, br.room_name, br.price_per_night FROM bookings b JOIN booking_rooms br ON b.id = br.booking_id WHERE b.id = ?");
+    $stmt_details = $conn->prepare("SELECT b.check_in, b.check_out, b.total_price, b.payment_method, b.user_id, br.room_id, br.room_name, br.price_per_night FROM bookings b JOIN booking_rooms br ON b.id = br.booking_id WHERE b.id = ?");
     $stmt_details->bind_param("i", $id);
     $stmt_details->execute();
     $res_details = $stmt_details->get_result();
     $booking_rooms = [];
     $old_checkout = "";
     $total_original_price = 0;
+    $payment_method = "N/A";
+    $guest_user_id = 0;
     while ($row = $res_details->fetch_assoc()) {
         $booking_rooms[] = $row;
         $old_checkout = $row['check_out'];
         $total_original_price = $row['total_price'];
+        $payment_method = $row['payment_method'];
+        $guest_user_id = $row['user_id'];
     }
 
     // 2. Conflict Check
@@ -387,6 +391,21 @@ elseif ($action === 'extend') {
             $upd_stmt->bind_param("sdi", $new_checkout, $new_total, $id);
         }
         $upd_stmt->execute();
+
+        // 🟢 NEW: RECORD IN TRANSACTIONS TABLE
+        $is_full = ($extension_payment === 'pay_now' || $extension_payment === 'pay_full');
+        $trans_status = $is_full ? 'Extended - Fully Paid' : 'Extended - Partially Paid';
+        $user_id = $guest_user_id;
+
+        // 🟢 DEDUPLICATION CHECK: Prevent triple recording
+        $check_dup = $conn->prepare("SELECT id FROM transactions WHERE reference_id = ? AND status = ? AND amount = ? AND created_at > (NOW() - INTERVAL 10 SECOND)");
+        $check_dup->bind_param("ssd", $ref, $trans_status, $added_cost);
+        $check_dup->execute();
+        if ($check_dup->get_result()->num_rows === 0) {
+            $ins_trans = $conn->prepare("INSERT INTO transactions (user_id, transaction_type, reference_id, amount, payment_method, status, created_at) VALUES (?, 'Booking', ?, ?, ?, ?, NOW())");
+            $ins_trans->bind_param("isdss", $user_id, $ref, $added_cost, $payment_method, $trans_status);
+            $ins_trans->execute();
+        }
 
         // Notifications
         $stmt_notif = $conn->prepare("INSERT INTO system_notifications (title, description, type, is_read, created_at) VALUES ('Booking Extended', ?, 'booking', 0, NOW())");

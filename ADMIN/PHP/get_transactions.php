@@ -47,12 +47,13 @@ try {
                 t.amount, 
                 t.payment_method, 
                 
-                -- 🟢 FIX: Check the REAL status from the Orders table
-                -- If the linked Order is 'Cancelled', show 'Cancelled' here too.
-                -- Otherwise, show the original transaction status.
+                -- 🟢 FIX: Check the REAL status from the Orders or Bookings table
                 CASE 
                     WHEN t.transaction_type = 'Food Order' AND o.status = 'Cancelled' THEN 'Cancelled'
                     WHEN t.transaction_type = 'Food Order' AND o.status = 'Rejected' THEN 'Cancelled'
+                    -- Check both the booking table status and the transaction table status
+                    WHEN t.transaction_type = 'Booking' AND (b.payment_status = 'partial' OR t.status = 'Partial' OR t.status = 'partial') THEN 'Partially Paid'
+                    WHEN t.status = 'Partial' OR t.status = 'partial' THEN 'Partially Paid'
                     ELSE t.status 
                 END as status,
 

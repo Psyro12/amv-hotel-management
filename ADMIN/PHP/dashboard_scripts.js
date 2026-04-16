@@ -102,6 +102,13 @@
         window.myBookingPieChart = null;
 
         document.addEventListener("DOMContentLoaded", function () {
+            // 🟢 Check for stored success message after reload
+            const pendingSuccess = sessionStorage.getItem('amv_pending_success');
+            if (pendingSuccess) {
+                showSuccess(pendingSuccess);
+                sessionStorage.removeItem('amv_pending_success');
+            }
+
             // Initial Pie Chart
             const pieCtx = document.getElementById('pieBookings').getContext('2d');
 
@@ -5225,7 +5232,8 @@
                 .then(res => res.json())
                 .then(async data => {
                     if (data.status === 'success') {
-                        showSuccess(`Stay extended.\nNew Total: ₱${data.new_total}`);
+                        // 🟢 Store message for after reload
+                        sessionStorage.setItem('amv_pending_success', `Stay extended.\nNew Total: ₱${data.new_total}`);
                         location.reload();
                     }
                     else if (data.status === 'conflict') {
@@ -5354,7 +5362,8 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        showSuccess("Stay Extended with room changes!");
+                        // 🟢 Store message for after reload
+                        sessionStorage.setItem('amv_pending_success', "Stay Extended with room changes!");
                         location.reload();
                     } else {
                         toggleUILock(false);
@@ -6729,7 +6738,9 @@
                 return;
             }
 
-            if (!overrideRoomId && !await showConfirm("Confirmation", "Are you sure you want to reschedule?")) return;
+            // 🟢 CONFIRMATION POPUP (Always show before saving)
+            const confirmMsg = overrideRoomId ? "Are you sure you want to finalize this reschedule with the selected room?" : "Are you sure you want to reschedule?";
+            if (!await showConfirm("Confirmation", confirmMsg)) return;
 
             // 🟢 UI LOCKING (Locker System)
             toggleUILock(true, "PROCESSING RESCHEDULE...");
@@ -6759,10 +6770,13 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        showSuccess(data.message + "\n\nNew Total Price: ₱" + parseFloat(data.new_total).toLocaleString());
-                        setTimeout(() => {
-                            location.reload();
-                        }, 1500);
+                        toggleUILock(false); // 🟢 Unlock UI FIRST
+                        
+                        // 🟢 Store message for after reload
+                        const successMsg = data.message + "\n\nNew Total Price: ₱" + parseFloat(data.new_total).toLocaleString();
+                        sessionStorage.setItem('amv_pending_success', successMsg);
+                        
+                        location.reload();
                     }
                     else if (data.status === 'selection_required' || data.status === 'conflict') {
                         // --- UI MAGIC: SWITCH TO ROOM SELECTION VIEW ---
@@ -9202,6 +9216,9 @@
                 return;
             }
             data.forEach(t => {
+                // 🟢 Normalize status for display
+                if (t.status === 'Partial' || t.status === 'partial') t.status = 'Partially Paid';
+
                 let typeBadge = '';
                 if (t.transaction_type === 'Booking') {
                     typeBadge = '<span class="badge" style="background:#E0E7FF; color:#3730A3; border:1px solid #C7D2FE;">Booking</span>';
@@ -9211,6 +9228,9 @@
 
                 let statusClass = 'badge-pending';
                 if (t.status === 'Paid') statusClass = 'badge-confirmed';
+                if (t.status === 'Partially Paid') statusClass = 'badge-partial';
+                if (t.status === 'Rescheduled') statusClass = 'badge-rescheduled';
+                if (t.status && t.status.startsWith('Extended')) statusClass = 'badge-extended';
                 if (t.status === 'Failed' || t.status === 'Cancelled') statusClass = 'badge-cancelled';
 
                 let methodIcon = '<i class="fas fa-money-bill-wave" style="color:#10B981;"></i>';
@@ -9282,6 +9302,18 @@
                 badge.style.backgroundColor = '#DCFCE7'; // Green
                 badge.style.color = '#166534';
                 badge.style.borderColor = '#BBF7D0';
+            } else if (t.status === 'Partially Paid') {
+                badge.style.backgroundColor = '#F0F9FF'; // Sky Blue 50
+                badge.style.color = '#075985'; // Sky Blue 900
+                badge.style.borderColor = '#BAE6FD'; // Sky Blue 200
+            } else if (t.status === 'Rescheduled') {
+                badge.style.backgroundColor = '#F5F3FF'; // Purple 50
+                badge.style.color = '#5B21B6'; // Purple 900
+                badge.style.borderColor = '#DDD6FE'; // Purple 200
+            } else if (t.status && t.status.startsWith('Extended')) {
+                badge.style.backgroundColor = '#EEF2FF'; // Indigo 50
+                badge.style.color = '#3730A3'; // Indigo 900
+                badge.style.borderColor = '#C7D2FE'; // Indigo 200
             } else if (t.status === 'Pending') {
                 badge.style.backgroundColor = '#FFF7ED'; // Orange
                 badge.style.color = '#9A3412';
