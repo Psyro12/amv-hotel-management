@@ -3296,6 +3296,17 @@ $result_orders = $conn->query($sql_orders);
                             style="min-height: 400px; max-height: 75vh; overflow-y: auto; padding: 5px;">
                             <div id="receiptGrid" class="receipt-grid">
                             </div>
+                            
+                            <!-- 🟢 NEW: PAGINATION CONTROLS -->
+                            <div id="receiptPagination" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 25px; padding: 15px; border-top: 1px solid #eee;">
+                                <button class="btn-secondary" id="receiptPrevBtn" onclick="changeReceiptPage(-1)" style="padding: 8px 20px; font-weight: 600;">
+                                    <i class="fas fa-chevron-left"></i> Previous
+                                </button>
+                                <div id="receiptPageInfo" style="font-weight: 600; color: #555;">Page 1 of 1</div>
+                                <button class="btn-secondary" id="receiptNextBtn" onclick="changeReceiptPage(1)" style="padding: 8px 20px; font-weight: 600;">
+                                    Next <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
 

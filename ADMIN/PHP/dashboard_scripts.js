@@ -8886,22 +8886,45 @@
             loadReceipts(); // Reloads data with empty date (Show All)
         }
 
-        // [INFO] UPDATED: Fetch Receipts
-        function loadReceipts() {
+        // [INFO] PAYMENT RECEIPT PAGINATION
+        let receiptCurrentPage = 1;
+        const receiptLimit = 30;
+
+        function changeReceiptPage(step) {
+            receiptCurrentPage += step;
+            if (receiptCurrentPage < 1) receiptCurrentPage = 1;
+            loadReceipts();
+            
+            // Scroll to top of container
+            const container = document.querySelector(".receipt-gallery-container");
+            if (container) container.scrollTop = 0;
+        }
+
+        // [INFO] UPDATED: Fetch Receipts with Pagination
+        function loadReceipts(resetPage = false) {
+            if (resetPage) receiptCurrentPage = 1;
+            
             const input = document.getElementById('receiptFilterDate');
             if (!input) return;
 
-            const dateVal = input.value; // Can be "2026-02-02" or "" (empty)
+            const dateVal = input.value; 
+            const offset = (receiptCurrentPage - 1) * receiptLimit;
 
             const container = document.getElementById('receiptGrid');
-            container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:50px; color:#888;"><i class="fas fa-spinner fa-spin"></i> Loading receipts...</div>';
+            container.innerHTML = `
+                <div style="grid-column:1/-1; text-align:center; padding:100px 0;">
+                    <div class="amv-loader-container">
+                        <div class="amv-loader"></div>
+                        <div style="font-weight: 600; font-size: 1.1rem; letter-spacing: 0.5px; color: #B88E2F;">Loading Receipts...</div>
+                    </div>
+                </div>`;
 
-            // Send date (empty or specific)
-            fetch(`get_all_receipts.php?date=${dateVal}`)
+            fetch(`get_all_receipts.php?date=${dateVal}&limit=${receiptLimit}&offset=${offset}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
                         renderReceiptGrid(data.data);
+                        updateReceiptPagination(data.total);
                     } else {
                         container.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:red;">Error loading data.</div>`;
                     }
@@ -8912,21 +8935,27 @@
                 });
         }
 
-        // --- UPDATED RENDER FUNCTION (Filters out Admin Bookings) ---
+        function updateReceiptPagination(total) {
+            const totalPages = Math.ceil(total / receiptLimit) || 1;
+            const info = document.getElementById('receiptPageInfo');
+            const prevBtn = document.getElementById('receiptPrevBtn');
+            const nextBtn = document.getElementById('receiptNextBtn');
+
+            if (info) info.innerText = `Page ${receiptCurrentPage} of ${totalPages} (${total} total)`;
+            
+            if (prevBtn) prevBtn.disabled = (receiptCurrentPage <= 1);
+            if (nextBtn) nextBtn.disabled = (receiptCurrentPage >= totalPages);
+
+            const pagDiv = document.getElementById('receiptPagination');
+            if (pagDiv) pagDiv.style.display = (total > 0) ? 'flex' : 'none';
+        }
+
+        // --- UPDATED RENDER FUNCTION ---
         function renderReceiptGrid(receipts) {
             const container = document.getElementById('receiptGrid');
             container.innerHTML = '';
 
-            // [INFO] 1. FILTER: Only keep bookings that have a REAL receipt image
-            // This removes Admin/Walk-in bookings (empty image) or Room Charges
-            const validReceipts = receipts.filter(r =>
-                r.image &&
-                r.image.trim() !== '' &&
-                r.image !== 'Charge to Room'
-            );
-
-            // 2. Check if valid receipts exist
-            if (validReceipts.length === 0) {
+            if (!receipts || receipts.length === 0) {
                 container.innerHTML = `
         <div style="grid-column:1/-1; text-align:center; padding:50px; color:#999;">
             <i class="fas fa-file-invoice-dollar" style="font-size:3rem; margin-bottom:15px; opacity:0.3;"></i>
@@ -8935,8 +8964,7 @@
                 return;
             }
 
-            // 3. Render only the valid ones
-            validReceipts.forEach(r => {
+            receipts.forEach(r => {
                 const imgPath = '../../room_includes/uploads/receipts/' + r.image;
 
                 const dateStr = new Date(r.date_time).toLocaleDateString('en-US', {
@@ -8945,8 +8973,6 @@
 
                 const card = document.createElement('div');
                 card.className = 'receipt-card';
-
-                // Prevent click if clicking the delete button
                 card.onclick = (e) => {
                     if (!e.target.closest('.delete-btn')) {
                         viewReceipt(imgPath);
