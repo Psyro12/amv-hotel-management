@@ -134,8 +134,10 @@ if ($action === 'arrive') {
     $app_notif_title = "Welcome!";
     $app_notif_msg = "You have successfully checked in. Enjoy your stay!";
 
-    // Email Logic with Design
-    if (!empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
+    // 🟢 EMAIL ONLY FOR WEB GUESTS
+    $isWebGuest = ($accountSource === 'google' || $accountSource === 'facebook' || empty($accountSource));
+
+    if ($isWebGuest && !empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         try {
             $mail->isSMTP();
@@ -178,7 +180,10 @@ elseif ($action === 'checkout') {
     $app_notif_title = "Checked Out";
     $app_notif_msg = "Thank you for staying with us! Safe travels.";
 
-    if (!empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
+    // 🟢 EMAIL ONLY FOR WEB GUESTS
+    $isWebGuest = ($accountSource === 'google' || $accountSource === 'facebook' || empty($accountSource));
+
+    if ($isWebGuest && !empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         try {
             $mail->isSMTP();
@@ -240,7 +245,11 @@ elseif ($action === 'cancel') {
     // Trigger real-time updates
     $conn->query("UPDATE system_updates SET last_updated = CURRENT_TIMESTAMP WHERE category IN ('bookings', 'notifications')");
 
-    if (!empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
+    // 🟢 EMAIL ONLY FOR WEB GUESTS (google/facebook or empty)
+    // If accountSource is 'p2p' (mobile app), we ONLY send app notification.
+    $isWebGuest = ($accountSource === 'google' || $accountSource === 'facebook' || empty($accountSource));
+
+    if ($isWebGuest && !empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         try {
             $mail->isSMTP();
