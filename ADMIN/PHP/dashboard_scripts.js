@@ -8418,6 +8418,11 @@
                 <i class="fas fa-user"></i> ${b.first_name} ${b.last_name}
             </div>
 
+            <!-- 🟢 ADDED BOOKING DATES -->
+            <div style="font-size:0.8rem; color:#4B5563; background:#F3F4F6; padding:5px 10px; border-radius:4px; margin-bottom:5px; border:1px solid #E5E7EB;">
+                <i class="fas fa-calendar-alt"></i> ${new Date(b.check_in).toLocaleDateString('en-US', {month:'short', day:'numeric'})} - ${new Date(b.check_out).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
+            </div>
+
             <div style="font-size:0.85rem; color:#3B82F6; background:#EFF6FF; padding:5px 10px; border-radius:4px; margin-bottom:10px; font-weight:600;">
                 <i class="fas fa-bed"></i> ${b.room_names || 'Unknown Room'}
             </div>
