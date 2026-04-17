@@ -8524,75 +8524,95 @@
                 });
         }
 
-        // --- UPDATED REJECT FUNCTION (Enhanced UI & High Z-Index) ---
+        // --- UPDATED REJECT FUNCTION (Button Suggestions & Custom Input) ---
         async function rejectBooking(id, btnElement) {
             const { value: rejectionData } = await Swal.fire({
-                title: '<span style="color:#EF4444; font-weight:700;">Reject Booking</span>',
+                title: 'Reject Booking',
                 icon: 'warning',
+                width: '450px',
                 html: `
                     <div style="text-align: left; font-family: 'Montserrat', sans-serif;">
-                        <p style="font-size: 0.9rem; color: #666; margin-bottom: 20px;">Please provide a reason for rejecting this reservation. This will be sent to the guest.</p>
+                        <p style="font-size: 0.85rem; color: #666; margin-bottom: 20px; line-height:1.5;">Select a common reason below or type a custom one. Selecting a button will auto-fill the notes.</p>
                         
-                        <div class="swal-field-group" style="margin-bottom: 15px;">
-                            <label style="display:block; font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#999; margin-bottom:8px; letter-spacing:0.5px;">Select a Suggested Reason:</label>
-                            <select id="swal-rejection-select" class="ab-select" style="width:100% !important; display: block !important; visibility: visible !important; opacity: 1 !important;">
-                                <option value="Invalid payment proof provided.">Invalid payment proof provided.</option>
-                                <option value="Requested rooms are no longer available for these dates.">Requested rooms are no longer available.</option>
-                                <option value="Duplicate booking detected.">Duplicate booking detected.</option>
-                                <option value="Incomplete guest information.">Incomplete guest information.</option>
-                                <option value="Other">Other (Provide custom reason below)</option>
-                            </select>
+                        <div id="rejection-button-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px;">
+                            <button type="button" class="reason-btn" data-reason="Invalid payment proof provided. Please re-upload a clear receipt." onclick="toggleRejectionReason(this)">Invalid Payment</button>
+                            <button type="button" class="reason-btn" data-reason="Requested rooms are no longer available for these dates." onclick="toggleRejectionReason(this)">No Rooms</button>
+                            <button type="button" class="reason-btn" data-reason="Duplicate booking detected for the same guest/dates." onclick="toggleRejectionReason(this)">Duplicate</button>
+                            <button type="button" class="reason-btn" data-reason="Incomplete guest information. Please provide full details." onclick="toggleRejectionReason(this)">Incomplete Info</button>
                         </div>
 
-                        <div id="custom-reason-container" class="swal-field-group" style="display:none; margin-top: 15px;">
-                            <label style="display:block; font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#999; margin-bottom:8px; letter-spacing:0.5px;">Custom Reason / Additional Notes</label>
-                            <textarea id="swal-rejection-custom" class="ab-input" rows="4" 
-                                placeholder="Enter specific details or a custom reason here..." 
-                                style="width:100%; border-radius:12px; border:1px solid #E5E7EB; padding:15px; font-family:inherit; font-size:0.9rem; box-sizing:border-box; resize:none;"></textarea>
-                        </div>
+                        <label class="ab-label" style="font-size:0.7rem; color:#999; margin-bottom:8px; letter-spacing:0.5px; text-transform:uppercase; font-weight:700;">Rejection Reason / Message</label>
+                        <textarea id="swal-rejection-custom" class="ab-input" rows="4" 
+                            placeholder="Select a reason above or type here..." 
+                            style="width:100%; border-radius:12px; border:1px solid #E5E7EB; padding:12px; font-family:inherit; font-size:0.9rem; box-sizing:border-box; resize:none;"></textarea>
                     </div>
+                    <style>
+                        .reason-btn {
+                            background: #F8F9FA;
+                            border: 1px solid #E9ECEF;
+                            border-radius: 10px;
+                            padding: 10px 8px;
+                            font-size: 0.75rem;
+                            font-weight: 700;
+                            color: #495057;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                            font-family: 'Montserrat', sans-serif;
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                        }
+                        .reason-btn:hover { background: #E9ECEF; border-color: #B88E2F; color: #B88E2F; }
+                        .reason-btn.active {
+                            background: #B88E2F;
+                            border-color: #B88E2F;
+                            color: #FFFFFF;
+                            box-shadow: 0 4px 6px -1px rgba(184, 142, 47, 0.2);
+                        }
+                    </style>
                 `,
                 showCancelButton: true,
                 confirmButtonText: 'Confirm Rejection',
-                confirmButtonColor: '#EF4444',
-                cancelButtonText: 'Go Back',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#B88E2F',
                 cancelButtonColor: '#6B7280',
                 reverseButtons: true,
-                focusConfirm: false,
+                customClass: {
+                    container: 'amv-swal-container',
+                    popup: 'amv-swal-popup',
+                    title: 'amv-swal-title',
+                    htmlContainer: 'amv-swal-content',
+                    confirmButton: 'amv-swal-confirm-btn',
+                    cancelButton: 'amv-swal-cancel-btn'
+                },
+                showClass: { popup: 'swal-win11-show' },
+                hideClass: { popup: 'swal-win11-hide' },
                 didOpen: () => {
                     const container = Swal.getContainer();
-                    if (container) container.style.zIndex = '3000';
-                    
-                    const select = document.getElementById('swal-rejection-select');
-                    const customContainer = document.getElementById('custom-reason-container');
-                    
-                    // Show/Hide custom reason field based on selection
-                    select.addEventListener('change', (e) => {
-                        if (e.target.value === 'Other') {
-                            customContainer.style.display = 'block';
-                            document.getElementById('swal-rejection-custom').focus();
+                    if (container) container.style.zIndex = '999999';
+
+                    const textarea = document.getElementById('swal-rejection-custom');
+
+                    window.toggleRejectionReason = (btn) => {
+                        const isAlreadyActive = btn.classList.contains('active');
+                        const reasonText = btn.getAttribute('data-reason');
+                        document.querySelectorAll('.reason-btn').forEach(b => b.classList.remove('active'));
+
+                        if (isAlreadyActive) {
+                            if (textarea.value.trim() === reasonText) textarea.value = '';
                         } else {
-                            customContainer.style.display = 'none';
+                            btn.classList.add('active');
+                            textarea.value = reasonText;
                         }
-                    });
-                    
-                    // Default behavior
-                    if (select.value === 'Other') customContainer.style.display = 'block';
+                        textarea.focus();
+                    };
                 },
                 preConfirm: () => {
-                    const selected = document.getElementById('swal-rejection-select').value;
                     const custom = document.getElementById('swal-rejection-custom').value.trim();
-                    
-                    if (selected === 'Other') {
-                        if (!custom) {
-                            Swal.showValidationMessage('Please type a custom reason.');
-                            return false;
-                        }
-                        return custom;
+                    if (!custom) {
+                        Swal.showValidationMessage('Please provide a reason for the guest.');
+                        return false;
                     }
-                    
-                    // If they typed something but DIDN'T select 'Other', we can append it or just use suggestion
-                    return custom ? (selected + " " + custom) : selected;
+                    return custom;
                 }
             });
 
@@ -8606,9 +8626,7 @@
             const originalContent = btnElement.innerHTML;
             btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             btnElement.disabled = true;
-            btnElement.style.opacity = '0.7';
 
-            // Lock the container visuals
             const drawerBody = document.getElementById('pendingDrawerBody');
             if (drawerBody) {
                 drawerBody.style.pointerEvents = 'none';
@@ -8635,14 +8653,12 @@
                         showError("Error: " + data.message);
                         btnElement.innerHTML = originalContent;
                         btnElement.disabled = false;
-                        btnElement.style.opacity = '1';
                     }
                 })
                 .catch(err => {
                     showError("System Error");
                     btnElement.innerHTML = originalContent;
                     btnElement.disabled = false;
-                    btnElement.style.opacity = '1';
                 })
                 .finally(() => {
                     if (drawerBody) {
@@ -9301,7 +9317,7 @@
                 if (t.status === 'Partially Paid') statusClass = 'badge-partial';
                 if (t.status === 'Rescheduled') statusClass = 'badge-rescheduled';
                 if (t.status && t.status.startsWith('Extended')) statusClass = 'badge-extended';
-                if (t.status === 'Failed' || t.status === 'Cancelled') statusClass = 'badge-cancelled';
+                if (t.status === 'Failed' || t.status === 'Cancelled' || t.status === 'Rejected') statusClass = 'badge-cancelled';
 
                 let methodIcon = '<i class="fas fa-money-bill-wave" style="color:#10B981;"></i>';
                 if (t.payment_method === 'GCash' || t.payment_method === 'Maya') {

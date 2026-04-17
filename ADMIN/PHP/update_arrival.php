@@ -216,18 +216,29 @@ elseif ($action === 'checkout') {
     }
 } 
 
-// CANCEL ACTION
+// CANCEL/REJECT ACTION
 elseif ($action === 'cancel') {
-    $query = "UPDATE bookings SET status = 'cancelled', arrival_status = 'cancelled' WHERE id = ?";
-    $tStmt = $conn->prepare("UPDATE transactions SET status = 'Cancelled' WHERE reference_id = ?");
+    $reason = $_POST['reason'] ?? 'No reason provided.';
+    
+    // 🟢 CHANGE: Use 'rejected' status instead of 'cancelled'
+    $query = "UPDATE bookings SET status = 'rejected', arrival_status = 'rejected', rejection_reason = ? WHERE id = ?";
+    $stmt_cancel = $conn->prepare($query);
+    $stmt_cancel->bind_param("si", $reason, $id);
+    $stmt_cancel->execute();
+
+    $tStmt = $conn->prepare("UPDATE transactions SET status = 'Rejected' WHERE reference_id = ?");
     $tStmt->bind_param("s", $ref);
     $tStmt->execute();
     $tStmt->close();
-    $title = "Booking Cancelled";
-    $desc = "Admin cancelled reservation for $guestName ($ref).";
+
+    $title = "Booking Rejected";
+    $desc = "Admin rejected reservation for $guestName ($ref). Reason: $reason";
     $type = "cancel";
-    $app_notif_title = "Booking Cancelled";
-    $app_notif_msg = "Your reservation $ref has been cancelled by the admin.";
+    $app_notif_title = "Booking Rejected";
+    $app_notif_msg = "Your reservation $ref has been rejected. Reason: $reason";
+
+    // Trigger real-time updates
+    $conn->query("UPDATE system_updates SET last_updated = CURRENT_TIMESTAMP WHERE category IN ('bookings', 'notifications')");
 
     if (!empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
@@ -236,20 +247,21 @@ elseif ($action === 'cancel') {
             $mail->Host = 'smtp.gmail.com'; $mail->SMTPAuth = true; $mail->Username = 'periolarren@gmail.com'; $mail->Password = 'ftvp ilfl utmq pdgg'; $mail->SMTPSecure = 'tls'; $mail->Port = 587;
             $mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));
             $mail->setFrom('periolarren@gmail.com', 'AMV Hotel'); $mail->addAddress($guestEmail, $guestName); $mail->isHTML(true);
-            $mail->Subject = "Booking Cancelled - Reference: $ref";
+            $mail->Subject = "Booking Update - Reference: $ref";
             $mail->Body = "
             <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px; overflow: hidden;'>
                 <div style='background-color: #EF4444; padding: 20px; text-align: center; color: white;'>
-                    <h2 style='margin:0;'>Reservation Cancelled</h2>
+                    <h2 style='margin:0;'>Reservation Update</h2>
                 </div>
                 <div style='padding: 30px; background-color: #ffffff; color: #333;'>
                     <p>Dear <strong>$guestName</strong>,</p>
-                    <p>We are writing to confirm that your reservation with AMV Hotel has been cancelled.</p>
+                    <p>We regret to inform you that your reservation with AMV Hotel has been rejected/cancelled by the admin.</p>
                     <div style='background-color: #FEF2F2; padding: 15px; margin: 20px 0; border-left: 4px solid #EF4444; border-radius: 4px;'>
                         <p style='margin: 5px 0;'><strong>Booking Reference:</strong> $ref</p>
-                        <p style='margin: 5px 0; color: #DC2626;'><strong>Status:</strong> Cancelled by Admin</p>
+                        <p style='margin: 5px 0;'><strong>Status:</strong> Rejected</p>
+                        <p style='margin: 5px 0; color: #DC2626;'><strong>Reason:</strong> $reason</p>
                     </div>
-                    <p>If you did not request this cancellation or believe this is an error, please contact our front desk immediately.</p>
+                    <p>If you have questions regarding this decision, please contact our front desk.</p>
                     <div style='background-color: #F9FAFB; padding: 15px; border-radius: 6px; border: 1px solid #E5E7EB; margin-top: 20px;'>
                         <h4 style='margin: 0 0 10px 0; color: #111827;'>$hotel_name Contact Information</h4>
                         <p style='margin: 5px 0; font-size: 0.9em;'>📍 <strong>Address:</strong> $hotel_address</p>
@@ -262,6 +274,18 @@ elseif ($action === 'cancel') {
             $mail->send();
         } catch (Exception $e) {}
     }
+    
+    // Output success and exit to prevent later blocks from running
+    if (!empty($title)) {
+        $stmt_notif = $conn->prepare("INSERT INTO system_notifications (title, description, type, is_read, created_at) VALUES (?, ?, ?, 0, NOW())");
+        $stmt_notif->bind_param("sss", $title, $desc, $type);
+        $stmt_notif->execute();
+    }
+    if (!empty($app_notif_title)) {
+        sendAppNotification($conn, $guestEmail, $accountSource, $app_notif_title, $app_notif_msg, "booking");
+    }
+    echo json_encode(['status' => 'success']);
+    exit;
 }
 
 // NO-SHOW ACTION
