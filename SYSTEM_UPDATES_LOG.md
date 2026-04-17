@@ -7,6 +7,9 @@ This document serves as a permanent record of all functional, structural, and de
 ## 🟢 April 16, 2026 - Major Functional & UI Enhancements
 
 ### 1. Booking Verification & Rejection System
+*   **Source-Based Notifications:** Implemented logic to distinguish between website and mobile app bookings. 
+    *   **Website Guests:** Continue to receive automated emails for check-ins, check-outs, extensions, and rejections.
+    *   **App Guests (P2P):** Now exclusively receive in-app notifications, preventing redundant emails for mobile-first users.
 *   **Booking Date Visibility:** Added check-in and check-out dates to the pending verification cards in the admin drawer. This allows administrators to clearly distinguish between different bookings for the same room on different dates.
 *   **Status Differentiation:** Introduced the `rejected` status to distinguish between guest-initiated cancellations and administrator denials.
 *   **Enhanced Rejection Modal:** 
