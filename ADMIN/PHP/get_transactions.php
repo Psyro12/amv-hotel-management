@@ -37,7 +37,7 @@ try {
     ) + (
         SELECT COUNT(*) FROM bookings b
         LEFT JOIN transactions t ON b.booking_reference = t.reference_id
-        WHERE t.id IS NULL AND (status = 'pending' AND ('Booking' = ? OR ? = 'all'))
+        WHERE t.id IS NULL AND (b.status = 'pending' AND ('Booking' = ? OR ? = 'all'))
     ) as total";
     $c_stmt = $conn->prepare($countSql);
     $c_stmt->bind_param("ssss", $typeFilter, $typeFilter, $typeFilter, $typeFilter);
