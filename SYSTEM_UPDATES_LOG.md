@@ -19,7 +19,7 @@ This document serves as a permanent record of all functional, structural, and de
 *   **Performance Optimization:** Significantly optimized the transaction fetch query by removing expensive `UNION ALL` operations and simplifying the count logic. This resolves issues with slow loading times and "System Errors" encountered during high-volume usage.
 *   **Polling Frequency Adjustment:** Reduced the background refresh rate for the transaction table from 1 second to 5 seconds. This reduces server load and prevents overlapping requests that were causing instability when switching between dashboard tabs.
 *   **Partial Payment Fix:** Resolved a bug where web bookings with a "partial" payment term were being incorrectly recorded as "Paid" upon admin approval. The system now correctly identifies the payment term and records it as "Partially Paid" in the history.
-*   **Pending Visibility:** Updated the transaction history query to include web bookings that are still awaiting admin verification. These now appear with a **"Pending"** status, ensuring the history is complete even before the payment is fully verified.
+*   **Pending Visibility:** Updated the transaction history query to prioritize the **"Pending"** status. This ensures that new web bookings correctly show as "Pending" even if they have a partial payment plan selected, only switching to "Partially Paid" once verified by an admin.
 *   **New Transaction Types:** The system now automatically records transactions for:
     *   **Rescheduling:** Recorded as "Rescheduled" with the new total.
     *   **Extensions:** Recorded as "Extended - Fully Paid" or "Extended - Partially Paid" based on the payment choice.

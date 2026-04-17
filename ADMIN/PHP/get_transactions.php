@@ -48,6 +48,7 @@ try {
                 
                 -- 🟢 DYNAMIC STATUS MAPPING
                 CASE 
+                    WHEN t.status = 'Pending' THEN 'Pending'
                     WHEN t.transaction_type = 'Booking' AND (b.payment_status = 'partial' OR t.status IN ('Partial', 'partial')) THEN 'Partially Paid'
                     WHEN t.transaction_type = 'Food Order' AND o.status IN ('Cancelled', 'Rejected') THEN 'Cancelled'
                     ELSE t.status 
