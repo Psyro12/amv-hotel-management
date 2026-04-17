@@ -7,7 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = $_POST['id'];
 
     // 1. Get current booking details to verify payment logic
-    $sql_check = "SELECT total_price, amount_paid, payment_term FROM bookings WHERE id = ?";
+    $sql_check = "SELECT booking_reference, total_price, amount_paid, payment_term FROM bookings WHERE id = ?";
     $stmt = $conn->prepare($sql_check);
     $stmt->bind_param("i", $id);
     $stmt->execute();
@@ -15,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $booking = $res->fetch_assoc();
 
     if ($booking) {
+        $booking_ref = $booking['booking_reference'];
         $new_payment_status = 'unpaid';
 
         // Logic: If they paid according to their term (Full or Partial)
@@ -27,7 +28,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // 2. Update Status to CONFIRMED
-        // We set arrival_status to 'upcoming' so it appears in the table correctly
         $update = "UPDATE bookings SET 
                    status = 'confirmed', 
                    payment_status = ?, 
@@ -40,16 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt_up->execute()) {
             // 🟢 UPDATE TRANSACTION STATUS
             $new_trans_status = ($new_payment_status === 'paid') ? 'Paid' : 'Partial';
-            $ref = $booking['booking_reference']; // Need to fetch reference_id first or change the query above
             
-            // Re-fetching details to get reference if not selected above
-            $stmt_ref = $conn->prepare("SELECT booking_reference FROM bookings WHERE id = ?");
-            $stmt_ref->bind_param("i", $id);
-            $stmt_ref->execute();
-            $ref_row = $stmt_ref->get_result()->fetch_assoc();
-            $booking_ref = $ref_row['booking_reference'] ?? '';
-            $stmt_ref->close();
-
             if (!empty($booking_ref)) {
                 $stmtT = $conn->prepare("UPDATE transactions SET status = ? WHERE reference_id = ?");
                 $stmtT->bind_param("ss", $new_trans_status, $booking_ref);

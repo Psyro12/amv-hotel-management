@@ -16,6 +16,7 @@ This document serves as a permanent record of all functional, structural, and de
 *   **Guest Communication:** Automated rejection emails and in-app notifications now include the specific reason provided by the admin.
 
 ### 2. Transaction History & Tracking
+*   **Partial Payment Fix:** Resolved a bug where web bookings with a "partial" payment term were being incorrectly recorded as "Paid" upon admin approval. The system now correctly identifies the payment term and records it as "Partially Paid" in the history.
 *   **New Transaction Types:** The system now automatically records transactions for:
     *   **Rescheduling:** Recorded as "Rescheduled" with the new total.
     *   **Extensions:** Recorded as "Extended - Fully Paid" or "Extended - Partially Paid" based on the payment choice.

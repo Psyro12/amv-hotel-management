@@ -55,7 +55,7 @@ try {
 
     // 5. UPDATE BOOKING STATUS (Confirm & Paid)
     // If partial, set 'partial'; otherwise 'paid'
-    $new_pay_status = ($booking['payment_term'] === 'partial') ? 'partial' : 'paid';
+    $new_pay_status = (trim($booking['payment_term']) === 'partial') ? 'partial' : 'paid';
     
     $update_sql = "UPDATE bookings SET status = 'confirmed', arrival_status = 'upcoming', payment_status = ? WHERE id = ?";
     $up_stmt = $conn->prepare($update_sql);
