@@ -9648,13 +9648,13 @@
             }
         });
 
-        // 1. Transactions (Every 1 second)
+        // 1. Transactions (Every 5 seconds - Reduced for performance)
         setInterval(() => {
             const page = document.getElementById('transactions');
-            if (page && page.classList.contains('active') && !isHoveringTransactions) {
+            if (page && page.classList.contains('active') && !isHoveringTransactions && !isDrawerBusy) {
                 loadTransactions(true);
             }
-        }, 1000);
+        }, 5000);
 
         // 2. Food Orders Table (Every 1 second)
         setInterval(() => {
