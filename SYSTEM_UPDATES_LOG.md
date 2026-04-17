@@ -7,6 +7,7 @@ This document serves as a permanent record of all functional, structural, and de
 ## 🟢 April 16, 2026 - Major Functional & UI Enhancements
 
 ### 1. Booking Verification & Rejection System
+*   **Booking Date Visibility:** Added check-in and check-out dates to the pending verification cards in the admin drawer. This allows administrators to clearly distinguish between different bookings for the same room on different dates.
 *   **Status Differentiation:** Introduced the `rejected` status to distinguish between guest-initiated cancellations and administrator denials.
 *   **Enhanced Rejection Modal:** 
     *   Replaced the standard dropdown with an interactive **Suggested Reason Button Grid**.
