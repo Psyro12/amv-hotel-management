@@ -3,6 +3,8 @@
 
 // 1. PREVENT JSON CRASHES
 ob_start();
+error_reporting(0);
+ini_set('display_errors', 0);
 
 require 'db_connect.php';
 
@@ -46,6 +48,7 @@ $accountSource = "google";
 $stmt_info = $conn->prepare("
     SELECT 
         b.booking_reference, 
+        b.booking_source,
         bg.email, 
         CONCAT(bg.first_name, ' ', bg.last_name) as name,
         u.account_source
@@ -62,6 +65,7 @@ if ($row = $res_info->fetch_assoc()) {
     $ref = $row['booking_reference'];
     $guestName = $row['name'];
     $guestEmail = $row['email'];
+    $bookingSource = $row['booking_source'] ?? 'online';
     if (!empty($row['account_source'])) {
         $accountSource = $row['account_source'];
     }
@@ -70,11 +74,11 @@ if ($row = $res_info->fetch_assoc()) {
     exit;
 }
 
-// FETCH HOTEL CONTACT INFO FROM DATABASE
+// 🟢 FETCH HOTEL CONTACT INFO FROM DATABASE
 $hotel_email = "support@amvhotel.online";
 $hotel_phone = "+63 901 234 5678";
 $hotel_name = "AMV Hotel";
-$hotel_address = "Mamburao, Occidental Mindoro, Philippines"; 
+$hotel_address = "Mamburao, Occidental Mindoro, Philippines";
 
 $sql_hotel = "SELECT name, email, contact_number FROM admin_user WHERE ID = 1 LIMIT 1";
 $res_hotel = $conn->query($sql_hotel);
@@ -84,18 +88,11 @@ if ($res_hotel && $hrow = $res_hotel->fetch_assoc()) {
     $hotel_phone = $hrow['contact_number'] ?? $hotel_phone;
 }
 
-// HELPER: Send Notification to App
-function sendAppNotification($conn, $email, $source, $title, $message, $type) {
-    if (empty($email)) return;
-    $stmt = $conn->prepare("INSERT INTO guest_notifications (email, account_source, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, 0, NOW())");
-    $stmt->bind_param("sssss", $email, $source, $title, $message, $type);
-    $stmt->execute();
-    $stmt->close();
-}
+// 🟢 NEW: Include notification helper
+require_once 'notification_helper.php';
 
 // 7. Handle Actions
-$title = "";
-$desc = "";
+$title = ""; $desc = "";
 $type = "";
 $query = "";
 $app_notif_title = ""; 
@@ -103,7 +100,7 @@ $app_notif_msg = "";
 
 // ARRIVE ACTION
 if ($action === 'arrive') {
-    // Check Room Occupancy
+    // ... room occupancy check ...
     $check_sql = "SELECT r.name 
                   FROM booking_rooms current_br
                   JOIN booking_rooms other_br ON current_br.room_id = other_br.room_id
@@ -134,12 +131,11 @@ if ($action === 'arrive') {
     $app_notif_title = "Welcome!";
     $app_notif_msg = "You have successfully checked in. Enjoy your stay!";
 
-    // 🟢 EMAIL ONLY FOR WEB GUESTS
-    $isWebGuest = ($accountSource === 'google' || $accountSource === 'facebook' || empty($accountSource));
-
-    if ($isWebGuest && !empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
+    // 🟢 EMAIL ONLY FOR WEB/ADMIN GUESTS
+    if ($bookingSource !== 'mobile_app' && !empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         try {
+            // ... PHPMailer Config ...
             $mail->isSMTP();
             $mail->Host = 'smtp.gmail.com'; $mail->SMTPAuth = true; $mail->Username = 'periolarren@gmail.com'; $mail->Password = 'ftvp ilfl utmq pdgg'; $mail->SMTPSecure = 'tls'; $mail->Port = 587;
             $mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));
@@ -180,12 +176,11 @@ elseif ($action === 'checkout') {
     $app_notif_title = "Checked Out";
     $app_notif_msg = "Thank you for staying with us! Safe travels.";
 
-    // 🟢 EMAIL ONLY FOR WEB GUESTS
-    $isWebGuest = ($accountSource === 'google' || $accountSource === 'facebook' || empty($accountSource));
-
-    if ($isWebGuest && !empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
+    // 🟢 EMAIL ONLY FOR WEB/ADMIN GUESTS
+    if ($bookingSource !== 'mobile_app' && !empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         try {
+            // ... PHPMailer Config ...
             $mail->isSMTP();
             $mail->Host = 'smtp.gmail.com'; $mail->SMTPAuth = true; $mail->Username = 'periolarren@gmail.com'; $mail->Password = 'ftvp ilfl utmq pdgg'; $mail->SMTPSecure = 'tls'; $mail->Port = 587;
             $mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));
@@ -224,32 +219,36 @@ elseif ($action === 'checkout') {
 // CANCEL/REJECT ACTION
 elseif ($action === 'cancel') {
     $reason = $_POST['reason'] ?? 'No reason provided.';
+    $isRejection = (isset($_POST['is_rejection']) && $_POST['is_rejection'] === '1');
+
+    // 🟢 LOGIC: 'rejected' is for pending denials, 'cancelled' is for confirmed bookings
+    $newStatus = $isRejection ? 'rejected' : 'cancelled';
+    $newArrivalStatus = $isRejection ? 'rejected' : 'cancelled';
+    $logTitle = $isRejection ? 'Booking Rejected' : 'Booking Cancelled';
+    $logDesc = $isRejection ? "Admin rejected reservation for $guestName ($ref). Reason: $reason" : "Admin cancelled booking for $guestName ($ref). Reason: $reason";
     
-    // 🟢 CHANGE: Use 'rejected' status instead of 'cancelled'
-    $query = "UPDATE bookings SET status = 'rejected', arrival_status = 'rejected', rejection_reason = ? WHERE id = ?";
+    $query = "UPDATE bookings SET status = ?, arrival_status = ?, rejection_reason = ? WHERE id = ?";
     $stmt_cancel = $conn->prepare($query);
-    $stmt_cancel->bind_param("si", $reason, $id);
+    $stmt_cancel->bind_param("sssi", $newStatus, $newArrivalStatus, $reason, $id);
     $stmt_cancel->execute();
 
-    $tStmt = $conn->prepare("UPDATE transactions SET status = 'Rejected' WHERE reference_id = ?");
-    $tStmt->bind_param("s", $ref);
+    $tStatus = $isRejection ? 'Rejected' : 'Cancelled';
+    $tStmt = $conn->prepare("UPDATE transactions SET status = ? WHERE reference_id = ?");
+    $tStmt->bind_param("ss", $tStatus, $ref);
     $tStmt->execute();
     $tStmt->close();
 
-    $title = "Booking Rejected";
-    $desc = "Admin rejected reservation for $guestName ($ref). Reason: $reason";
+    $title = $logTitle;
+    $desc = $logDesc;
     $type = "cancel";
-    $app_notif_title = "Booking Rejected";
-    $app_notif_msg = "Your reservation $ref has been rejected. Reason: $reason";
+    $app_notif_title = $logTitle;
+    $app_notif_msg = "Your reservation $ref has been " . ($isRejection ? 'rejected' : 'cancelled') . ". Reason: $reason";
 
     // Trigger real-time updates
     $conn->query("UPDATE system_updates SET last_updated = CURRENT_TIMESTAMP WHERE category IN ('bookings', 'notifications')");
 
-    // 🟢 EMAIL ONLY FOR WEB GUESTS (google/facebook or empty)
-    // If accountSource is 'p2p' (mobile app), we ONLY send app notification.
-    $isWebGuest = ($accountSource === 'google' || $accountSource === 'facebook' || empty($accountSource));
-
-    if ($isWebGuest && !empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
+    // 🟢 EMAIL ONLY FOR WEB/ADMIN GUESTS
+    if ($bookingSource !== 'mobile_app' && !empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         try {
             $mail->isSMTP();
@@ -260,14 +259,14 @@ elseif ($action === 'cancel') {
             $mail->Body = "
             <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px; overflow: hidden;'>
                 <div style='background-color: #EF4444; padding: 20px; text-align: center; color: white;'>
-                    <h2 style='margin:0;'>Reservation Update</h2>
+                    <h2 style='margin:0;'>$logTitle</h2>
                 </div>
                 <div style='padding: 30px; background-color: #ffffff; color: #333;'>
                     <p>Dear <strong>$guestName</strong>,</p>
-                    <p>We regret to inform you that your reservation with AMV Hotel has been rejected/cancelled by the admin.</p>
+                    <p>We regret to inform you that your reservation with AMV Hotel has been " . ($isRejection ? 'rejected' : 'cancelled') . " by the admin.</p>
                     <div style='background-color: #FEF2F2; padding: 15px; margin: 20px 0; border-left: 4px solid #EF4444; border-radius: 4px;'>
                         <p style='margin: 5px 0;'><strong>Booking Reference:</strong> $ref</p>
-                        <p style='margin: 5px 0;'><strong>Status:</strong> Rejected</p>
+                        <p style='margin: 5px 0;'><strong>Status:</strong> $tStatus</p>
                         <p style='margin: 5px 0; color: #DC2626;'><strong>Reason:</strong> $reason</p>
                     </div>
                     <p>If you have questions regarding this decision, please contact our front desk.</p>
@@ -290,7 +289,7 @@ elseif ($action === 'cancel') {
         $stmt_notif->bind_param("sss", $title, $desc, $type);
         $stmt_notif->execute();
     }
-    if (!empty($app_notif_title)) {
+    if ($bookingSource === 'mobile_app' && !empty($app_notif_title)) {
         sendAppNotification($conn, $guestEmail, $accountSource, $app_notif_title, $app_notif_msg, "booking");
     }
     echo json_encode(['status' => 'success']);
@@ -306,9 +305,11 @@ elseif ($action === 'no_show') {
     $app_notif_title = "No-Show";
     $app_notif_msg = "Your booking was marked as No-Show because you did not arrive.";
 
-    if (!empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
+    // 🟢 EMAIL ONLY FOR WEB/ADMIN GUESTS
+    if ($bookingSource !== 'mobile_app' && !empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         try {
+            // ... PHPMailer Config ...
             $mail->isSMTP();
             $mail->Host = 'smtp.gmail.com'; $mail->SMTPAuth = true; $mail->Username = 'periolarren@gmail.com'; $mail->Password = 'ftvp ilfl utmq pdgg'; $mail->SMTPSecure = 'tls'; $mail->Port = 587;
             $mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));
@@ -341,6 +342,7 @@ elseif ($action === 'no_show') {
 
 // SMART EXTEND ACTION
 elseif ($action === 'extend') {
+    // ... validation and conflicts ...
     if (!isset($_POST['new_checkout']) || empty($_POST['new_checkout'])) {
         echo json_encode(['status' => 'error', 'message' => 'New checkout date missing.']);
         exit;
@@ -425,12 +427,11 @@ elseif ($action === 'extend') {
         }
         $upd_stmt->execute();
 
-        // 🟢 NEW: RECORD IN TRANSACTIONS TABLE
+        // Transaction Recording ...
         $is_full = ($extension_payment === 'pay_now' || $extension_payment === 'pay_full');
         $trans_status = $is_full ? 'Extended - Fully Paid' : 'Extended - Partially Paid';
         $user_id = $guest_user_id;
 
-        // 🟢 DEDUPLICATION CHECK: Prevent triple recording
         $check_dup = $conn->prepare("SELECT id FROM transactions WHERE reference_id = ? AND status = ? AND amount = ? AND created_at > (NOW() - INTERVAL 10 SECOND)");
         $check_dup->bind_param("ssd", $ref, $trans_status, $added_cost);
         $check_dup->execute();
@@ -446,12 +447,15 @@ elseif ($action === 'extend') {
         $stmt_notif->bind_param("s", $notif_d);
         $stmt_notif->execute();
 
-        sendAppNotification($conn, $guestEmail, $accountSource, "Stay Extended", "Your stay has been extended until $new_checkout.", "booking");
+        if ($bookingSource === 'mobile_app') {
+            sendAppNotification($conn, $guestEmail, $accountSource, "Stay Extended", "Your stay has been extended until $new_checkout.", "booking");
+        }
 
-        // EMAIL with Design
-        if (!empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
+        // EMAIL ONLY FOR WEB/ADMIN GUESTS
+        if ($bookingSource !== 'mobile_app' && !empty($guestEmail) && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
             $mail = new PHPMailer\PHPMailer\PHPMailer(true);
             try {
+                // ... PHPMailer Config ...
                 $mail->isSMTP();
                 $mail->Host = 'smtp.gmail.com'; $mail->SMTPAuth = true; $mail->Username = 'periolarren@gmail.com'; $mail->Password = 'ftvp ilfl utmq pdgg'; $mail->SMTPSecure = 'tls'; $mail->Port = 587;
                 $mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));
@@ -493,35 +497,6 @@ elseif ($action === 'extend') {
     exit;
 }
 
-// APPLY LATE FEE
-elseif ($action === 'apply_late_fee') {
-    $amount = floatval($_POST['amount'] ?? 0);
-    $sql = "UPDATE bookings SET total_price = total_price + ? WHERE id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("di", $amount, $id);
-    if ($stmt->execute()) echo json_encode(['status' => 'success']);
-    else echo json_encode(['status' => 'error', 'message' => 'DB error']);
-    $stmt->close();
-    exit;
-}
-
-// SETTLE PAYMENT
-elseif ($action === 'settle_payment') {
-    $stmt_get = $conn->prepare("SELECT total_price FROM bookings WHERE id = ?");
-    $stmt_get->bind_param("i", $id);
-    $stmt_get->execute();
-    if ($row_p = $stmt_get->get_result()->fetch_assoc()) {
-        $tp = $row_p['total_price'];
-        $stmt_pay = $conn->prepare("UPDATE bookings SET amount_paid = ?, payment_status = 'paid' WHERE id = ?");
-        $stmt_pay->bind_param("di", $tp, $id);
-        if ($stmt_pay->execute()) echo json_encode(['status' => 'success']);
-        else echo json_encode(['status' => 'error', 'message' => 'Update failed']);
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Not found']);
-    }
-    exit;
-}
-
 // 8. Execute Simple Actions
 if (!empty($query)) {
     $stmt = $conn->prepare($query);
@@ -532,7 +507,7 @@ if (!empty($query)) {
             $stmt_notif->bind_param("sss", $title, $desc, $type);
             $stmt_notif->execute();
         }
-        if (!empty($app_notif_title)) {
+        if ($bookingSource === 'mobile_app' && !empty($app_notif_title)) {
             sendAppNotification($conn, $guestEmail, $accountSource, $app_notif_title, $app_notif_msg, "booking");
         }
         echo json_encode(['status' => 'success']);

@@ -27,7 +27,7 @@
         }
 
         function showError(msg) {
-            // Errors stay slightly longer
+            // Errors stay slightly longer for readability
             amvToast.fire({
                 icon: 'error',
                 title: 'Error',
@@ -69,10 +69,42 @@
                     popup: 'swal-win11-hide'
                 },
                 didOpen: () => {
-                    Swal.getContainer().style.zIndex = '999999';
+                    const container = Swal.getContainer();
+                    if (container) container.style.zIndex = '1000000';
                 }
             });
             return result.isConfirmed;
+        }
+
+        async function showPrompt(title, text, placeholder = '') {
+            const result = await Swal.fire({
+                title: title,
+                text: text,
+                input: 'textarea',
+                inputPlaceholder: placeholder,
+                showCancelButton: true,
+                confirmButtonColor: '#B88E2F',
+                cancelButtonColor: '#6B7280',
+                confirmButtonText: 'Submit',
+                cancelButtonText: 'Cancel',
+                customClass: {
+                    popup: 'amv-swal-popup',
+                    title: 'amv-swal-title',
+                    confirmButton: 'amv-swal-confirm-btn',
+                    cancelButton: 'amv-swal-cancel-btn'
+                },
+                showClass: {
+                    popup: 'swal-win11-show'
+                },
+                didOpen: () => {
+                    const container = Swal.getContainer();
+                    if (container) container.style.zIndex = '1000000';
+                }
+            });
+            if (result.isConfirmed) {
+                return result.value;
+            }
+            return null;
         }
 
 // --- GLOBAL STORAGE (This fixes the undefined issue) ---
@@ -105,8 +137,16 @@
             // 🟢 Check for stored success message after reload
             const pendingSuccess = sessionStorage.getItem('amv_pending_success');
             if (pendingSuccess) {
-                showSuccess(pendingSuccess);
-                sessionStorage.removeItem('amv_pending_success');
+                // Short delay to let the dashboard fully settle
+                setTimeout(() => {
+                    amvToast.fire({
+                        icon: 'success',
+                        title: 'Action Successful',
+                        text: pendingSuccess,
+                        timer: 3000 // 🟢 Sync with global 3s timer
+                    });
+                    sessionStorage.removeItem('amv_pending_success');
+                }, 600);
             }
 
             // Initial Pie Chart
@@ -478,7 +518,7 @@
                 const isExpanded = (room.name === expandedLeaderboardRoom);
 
                 listHtml += `
-                    <div id="${rowId}" class="leaderboard-row room-row-item" onclick="toggleLeaderboardDetails('${detailsId}', '${rowId}', '${room.name}')"
+                    <div id=f"${rowId}" class="leaderboard-row room-row-item" onclick="toggleLeaderboardDetails('${detailsId}', '${rowId}', '${room.name}')"
                          style="display:flex; flex-direction:column; background:${isExpanded ? '#fafafa' : '#fff'}; padding:12px; border-radius:12px; border:1px solid #f0f0f0; margin-bottom:10px; cursor:pointer; transition: all 0.3s ease; overflow:hidden; box-shadow:${isExpanded ? '0 4px 12px rgba(0,0,0,0.05)' : 'none'};">
 
                         <div style="display:flex; align-items:center; gap:15px;">
@@ -2600,7 +2640,7 @@
                     btnCancel.style.backgroundColor = '#EF4444';
                     btnCancel.innerText = 'Cancel Booking';
                     btnCancel.onclick = async function () {
-                        if (await showConfirm("Confirmation", "Are you sure you want to cancel this booking?")) updateStatus(id, 'cancel', false, this);
+                        updateStatus(id, 'cancel', false, this);
                     };
                     container.appendChild(btnCancel);
                 }
@@ -2649,7 +2689,7 @@
                     btnCancel.style.backgroundColor = '#EF4444';
                     btnCancel.innerText = 'Cancel Booking';
                     btnCancel.onclick = async function () {
-                        if (await showConfirm("Confirmation", "Are you sure you want to cancel this booking?")) updateStatus(id, 'cancel', false, this);
+                        updateStatus(id, 'cancel', false, this);
                     };
                     container.appendChild(btnCancel);
                 }
@@ -2785,14 +2825,97 @@
         // --- UPDATE STATUS (With Loading & Safety Lock) ---
         async function updateStatus(id, action, isAuto = false, btnElement = null) {
 
+            let cancellationReason = "";
+
             // 1. Confirmation (Only for manual clicks)
             if (!isAuto) {
-                let confirmMsg = "Are you sure you want to update this status?";
-                if (action === 'cancel') confirmMsg = "Are you sure you want to CANCEL this booking? This cannot be undone.";
-                if (action === 'checkout') confirmMsg = "Confirm guest check-out?";
-                if (action === 'no_show') confirmMsg = "Mark this guest as No-Show?";
+                if (action === 'cancel') {
+                    // 🟢 NEW: Enhanced Cancellation with Reason
+                    const { value: result } = await Swal.fire({
+                        title: 'Cancel Booking',
+                        icon: 'warning',
+                        width: '450px',
+                        customClass: {
+                            popup: 'amv-swal-popup swal2-icon-warning',
+                            title: 'amv-swal-title',
+                            confirmButton: 'amv-swal-confirm-btn',
+                            cancelButton: 'amv-swal-cancel-btn'
+                        },
+                        showClass: {
+                            popup: 'swal-win11-show'
+                        },
+                        didOpen: () => {
+                            // 🟢 Ensure it stands out above drawers and other modals
+                            const container = Swal.getContainer();
+                            if (container) container.style.zIndex = '1000000';
+                        },
+                        html: `
+                            <div style="text-align: left; font-family: 'Montserrat', sans-serif;">
+                                <p style="font-size: 0.85rem; color: #666; margin-bottom: 20px; line-height:1.5;">Please provide a reason for this cancellation. Selecting a button below will auto-fill the field.</p>
+                                
+                                <div id="cancel-reason-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px;">
+                                    <button type="button" class="reason-btn" data-reason="Guest requested cancellation via phone/email." onclick="toggleCancelReason(this)">Guest Request</button>
+                                    <button type="button" class="reason-btn" data-reason="Duplicate booking detected for these dates." onclick="toggleCancelReason(this)">Duplicate</button>
+                                    <button type="button" class="reason-btn" data-reason="Unpaid or invalid payment verification." onclick="toggleCancelReason(this)">Invalid Payment</button>
+                                    <button type="button" class="reason-btn" data-reason="Maintenance issues in the reserved room(s)." onclick="toggleCancelReason(this)">Room Issue</button>
+                                </div>
 
-                if (!await showConfirm("Confirmation", confirmMsg)) return;
+                                <label class="ab-label" style="font-size:0.7rem; color:#999; margin-bottom:8px; letter-spacing:0.5px; text-transform:uppercase; font-weight:700;">Cancellation Notes</label>
+                                <textarea id="swal-cancel-reason" class="ab-input" rows="4" 
+                                    placeholder="Select a reason or type here..." 
+                                    style="width:100%; border-radius:12px; border:1px solid #E5E7EB; padding:12px; font-family:inherit; font-size:0.9rem; box-sizing:border-box; resize:none;"></textarea>
+                            </div>
+                            <style>
+                                .reason-btn {
+                                    background: #F8F9FA;
+                                    border: 1px solid #E9ECEF;
+                                    border-radius: 10px;
+                                    padding: 10px 8px;
+                                    font-size: 0.75rem;
+                                    font-weight: 700;
+                                    color: #495057;
+                                    cursor: pointer;
+                                    transition: all 0.2s;
+                                    font-family: 'Montserrat', sans-serif;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.5px;
+                                }
+                                .reason-btn:hover { background: #E9ECEF; border-color: #B88E2F; color: #B88E2F; }
+                                .reason-btn.active {
+                                    background: #B88E2F;
+                                    border-color: #B88E2F;
+                                    color: #FFFFFF;
+                                    box-shadow: 0 4px 6px -1px rgba(184, 142, 47, 0.2);
+                                }
+                            </style>
+                        `,
+                        showCancelButton: true,
+                        confirmButtonText: 'Confirm Cancellation',
+                        cancelButtonText: 'Back',
+                        confirmButtonColor: '#DC2626', // Red for cancellation
+                        cancelButtonColor: '#6B7280',
+                        reverseButtons: true,
+                        preConfirm: () => {
+                            const reason = document.getElementById('swal-cancel-reason').value.trim();
+                            if (!reason) {
+                                Swal.showValidationMessage('Please provide a reason');
+                                return false;
+                            }
+                            return reason;
+                        }
+                    });
+
+                    if (!result) return; // User clicked cancel
+                    cancellationReason = result;
+
+                } else {
+                    // Standard confirm for other actions
+                    let confirmMsg = "Are you sure you want to update this status?";
+                    if (action === 'checkout') confirmMsg = "Confirm guest check-out?";
+                    if (action === 'no_show') confirmMsg = "Mark this guest as No-Show?";
+
+                    if (!await showConfirm("Confirmation", confirmMsg)) return;
+                }
             }
 
             // 2. LOCK UI (Active Busy Mode)
@@ -2828,6 +2951,7 @@
             const formData = new FormData();
             formData.append('id', id);
             formData.append('action', action);
+            formData.append('reason', cancellationReason); // 🟢 NEW: Send reason
             formData.append('csrf_token', csrfToken);
 
             fetch('update_arrival.php', {
@@ -7246,7 +7370,7 @@
                             icon: 'success',
                             title: 'Check-in Confirmed!',
                             text: data.message,
-                            timer: 3000,
+                            timer: 5000,
                             showConfirmButton: false
                         }).then(() => {
                             refreshBookingTable();
@@ -8195,7 +8319,25 @@
 
                                 // 2. Remove Button, show "Completed" text
                                 actionCell.innerHTML = `<span style="font-size:0.8rem; color:#aaa;">Completed</span>`;
+
+                                // 🟢 NEW: SUCCESS TOAST
+                                showSuccess("Order has been served!");
+                            } else if (action === 'cancel') {
+                                // 1. Update Status Badge to "Cancelled"
+                                if (statusBadge) {
+                                    statusBadge.className = 'badge badge-cancelled'; // Assuming this class exists
+                                    statusBadge.innerText = 'Cancelled';
+                                }
+                                // 2. Remove Button
+                                actionCell.innerHTML = `<span style="font-size:0.8rem; color:#ef4444;">Cancelled</span>`;
+                                
+                                showSuccess("Order has been cancelled.");
                             }
+                        }
+
+                        // 🟢 Optional: If 'prepare', show toast too
+                        if (action === 'prepare') {
+                            showSuccess("Order is now being prepared.");
                         }
 
                     } else {
@@ -8642,6 +8784,7 @@
             formData.append('id', id);
             formData.append('action', 'cancel');
             formData.append('reason', rejectionData);
+            formData.append('is_rejection', '1');
 
             fetch('update_arrival.php', {
                 method: 'POST',
@@ -8837,21 +8980,26 @@
             }
         }
 
-        // --- UPDATED PROCESS ORDER FUNCTION (With Rotating Spinner & Text) ---
+        // --- UPDATED PROCESS ORDER FUNCTION (With Custom Rejection Modal) ---
         async function processOrder(id, action, btnElement) {
             const actionText = action === 'approve' ? "Accept" : "Reject";
 
-            if (!await showConfirm("Confirmation", `Are you sure you want to ${actionText} this order?`)) return;
+            // 🟢 NEW: If rejecting, use custom modal
+            if (action === 'reject') {
+                openOrderRejectionModal(id, btnElement);
+                return; // Modal takes over
+            } else {
+                if (!await showConfirm("Confirmation", `Are you sure you want to ${actionText} this order?`)) return;
+            }
 
             // 1. LOCK UI GLOBALLY
             isDrawerBusy = true;
-            toggleUILock(true, action === 'approve' ? "ACCEPTING ORDER..." : "REJECTING ORDER...");
+            toggleUILock(true, "ACCEPTING ORDER...");
 
             // 2. Visual Loading State (Save original, set new state)
             const originalContent = btnElement.innerHTML;
-            const loadingLabel = action === 'approve' ? 'Accepting...' : 'Rejecting...';
+            const loadingLabel = 'Accepting...';
 
-            // [INFO] The Magic Line: Spinner + Specific Action Text
             btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${loadingLabel}`;
             btnElement.disabled = true;
             btnElement.style.opacity = '0.7';
@@ -10037,3 +10185,213 @@
                     btn.disabled = false;
                 });
         }
+
+        // --- [INFO] ORDER REJECTION MODAL (MATCHES BOOKING REJECTION STYLE) ---
+        async function openOrderRejectionModal(id, btnElement) {
+            const { value: reason } = await Swal.fire({
+                title: 'Reject Food Order',
+                icon: 'warning',
+                width: '450px',
+                html: `
+                    <div style="text-align: left; font-family: 'Montserrat', sans-serif;">
+                        <p style="font-size: 0.85rem; color: #666; margin-bottom: 20px; line-height:1.5;">Select a common reason below or type a custom one. Selecting a button will auto-fill the notes.</p>
+                        
+                        <div id="rejection-button-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px;">
+                            <button type="button" class="reason-btn" data-reason="Requested item is currently out of stock." onclick="toggleRejectionReason(this)">Out of Stock</button>
+                            <button type="button" class="reason-btn" data-reason="Kitchen is currently closed and not accepting orders." onclick="toggleRejectionReason(this)">Kitchen Closed</button>
+                            <button type="button" class="reason-btn" data-reason="Invalid GCash reference or payment proof provided." onclick="toggleRejectionReason(this)">Invalid Payment</button>
+                            <button type="button" class="reason-btn" data-reason="Unable to fulfill order at this time due to high volume." onclick="toggleRejectionReason(this)">High Volume</button>
+                        </div>
+
+                        <label class="ab-label" style="font-size:0.7rem; color:#999; margin-bottom:8px; letter-spacing:0.5px; text-transform:uppercase; font-weight:700;">Rejection Reason / Message</label>
+                        <textarea id="swal-order-rejection-custom" class="ab-input" rows="4" 
+                            placeholder="Select a reason above or type here..." 
+                            style="width:100%; border-radius:12px; border:1px solid #E5E7EB; padding:12px; font-family:inherit; font-size:0.9rem; box-sizing:border-box; resize:none;"></textarea>
+                    </div>
+                    <style>
+                        .reason-btn {
+                            background: #F8F9FA;
+                            border: 1px solid #E9ECEF;
+                            border-radius: 10px;
+                            padding: 10px 8px;
+                            font-size: 0.75rem;
+                            font-weight: 700;
+                            color: #495057;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                            font-family: 'Montserrat', sans-serif;
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                        }
+                        .reason-btn:hover { background: #E9ECEF; border-color: #B88E2F; color: #B88E2F; }
+                        .reason-btn.active {
+                            background: #B88E2F;
+                            border-color: #B88E2F;
+                            color: #FFFFFF;
+                            box-shadow: 0 4px 6px -1px rgba(184, 142, 47, 0.2);
+                        }
+                    </style>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Confirm Rejection',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#B88E2F', // Match Booking Rejection Style
+                cancelButtonColor: '#6B7280',
+                reverseButtons: true,
+                customClass: {
+                    container: 'amv-swal-container',
+                    popup: 'amv-swal-popup',
+                    title: 'amv-swal-title',
+                    htmlContainer: 'amv-swal-content',
+                    confirmButton: 'amv-swal-confirm-btn',
+                    cancelButton: 'amv-swal-cancel-btn'
+                },
+                showClass: { popup: 'swal-win11-show' },
+                hideClass: { popup: 'swal-win11-hide' },
+                didOpen: () => {
+                    const container = Swal.getContainer();
+                    if (container) container.style.zIndex = '999999';
+
+                    const textarea = document.getElementById('swal-order-rejection-custom');
+
+                    window.toggleRejectionReason = (btn) => {
+                        const isAlreadyActive = btn.classList.contains('active');
+                        const reasonText = btn.getAttribute('data-reason');
+                        document.querySelectorAll('.reason-btn').forEach(b => b.classList.remove('active'));
+
+                        if (isAlreadyActive) {
+                            if (textarea.value.trim() === reasonText) textarea.value = '';
+                        } else {
+                            btn.classList.add('active');
+                            textarea.value = reasonText;
+                        }
+                        textarea.focus();
+                    };
+                },
+                preConfirm: () => {
+                    const custom = document.getElementById('swal-order-rejection-custom').value.trim();
+                    if (!custom) {
+                        Swal.showValidationMessage('Please provide a reason for the guest.');
+                        return false;
+                    }
+                    return custom;
+                }
+            });
+
+            if (!reason) return;
+
+            // 1. LOCK UI GLOBALLY
+            isDrawerBusy = true;
+            toggleUILock(true, "REJECTING ORDER...");
+
+            // 2. Button Loading State
+            const originalContent = btnElement.innerHTML;
+            btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Rejecting...`;
+            btnElement.disabled = true;
+
+            const drawerBody = document.getElementById("orderDrawerBody");
+            if (drawerBody) {
+                drawerBody.style.pointerEvents = "none";
+                drawerBody.style.opacity = "0.8";
+            }
+
+            const formData = new FormData();
+            formData.append("id", id);
+            formData.append("action", "reject");
+            formData.append("reason", reason);
+
+            fetch("approve_order.php", {
+                method: "POST",
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    const card = btnElement.closest(".pending-card");
+                    if (card) {
+                        card.style.transition = "all 0.5s ease";
+                        card.style.opacity = "0";
+                        card.style.transform = "translateX(-50px)";
+
+                        setTimeout(() => {
+                            card.remove();
+                            if (document.querySelectorAll("#orderDrawerBody .pending-card").length === 0) {
+                                document.getElementById("orderDrawerBody").innerHTML = `<div style="text-align:center; padding:40px; color:#9ca3af;"><i class="fas fa-check-circle" style="font-size:3rem; margin-bottom:15px; color:#D1D5DB;"></i><p>No pending food orders.</p></div>`;
+                            }
+                            if (typeof refreshFoodTable === 'function') refreshFoodTable();
+                            if (typeof fetchDashboardCards === 'function') fetchDashboardCards();
+                            fetchHeaderData();
+                            showSuccess(data.message);
+                            
+                            isDrawerBusy = false;
+                            if (drawerBody) {
+                                drawerBody.style.pointerEvents = "auto";
+                                drawerBody.style.opacity = "1";
+                            }
+                            toggleUILock(false);
+                        }, 500);
+                    } else {
+                        showSuccess(data.message);
+                        fetchHeaderData();
+                        isDrawerBusy = false;
+                        if (drawerBody) {
+                            drawerBody.style.pointerEvents = "auto";
+                            drawerBody.style.opacity = "1";
+                        }
+                        toggleUILock(false);
+                    }
+                } else {
+                    showError(data.message || "Failed to reject order.");
+                    btnElement.innerHTML = originalContent;
+                    btnElement.disabled = false;
+                    isDrawerBusy = false;
+                    if (drawerBody) {
+                        drawerBody.style.pointerEvents = "auto";
+                        drawerBody.style.opacity = "1";
+                    }
+                    toggleUILock(false);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showError("System Error: " + err.message);
+                btnElement.innerHTML = originalContent;
+                btnElement.disabled = false;
+                isDrawerBusy = false;
+                if (drawerBody) {
+                    drawerBody.style.pointerEvents = "auto";
+                    drawerBody.style.opacity = "1";
+                }
+                toggleUILock(false);
+            });
+        }
+
+        // Cleanup: remove old close function if not used elsewhere
+        function closeOrderRejectionModal() {
+            const modal = document.getElementById("orderRejectionModal");
+            if (modal) modal.style.display = "none";
+        }
+
+        // 🟢 HELPER: Toggle Cancel Reason Buttons
+        window.toggleCancelReason = (btn) => {
+            const textarea = document.getElementById('swal-cancel-reason');
+            const reasonText = btn.getAttribute('data-reason');
+            const isAlreadyActive = btn.classList.contains('active');
+
+            // Reset all buttons in the grid
+            document.querySelectorAll('#cancel-reason-grid .reason-btn').forEach(b => b.classList.remove('active'));
+
+            if (isAlreadyActive) {
+                // If it was already active, we just untoggle it and clear if it matches the text
+                if (textarea.value.trim() === reasonText) {
+                    textarea.value = '';
+                }
+            } else {
+                // Mark active and set textarea
+                btn.classList.add('active');
+                textarea.value = reasonText;
+            }
+            textarea.focus();
+        };
+
+

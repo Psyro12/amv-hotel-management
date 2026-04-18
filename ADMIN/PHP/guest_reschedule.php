@@ -31,7 +31,7 @@ if (empty($ref) || empty($newCheckIn) || empty($newCheckOut)) {
 }
 
 // 2. FETCH CURRENT BOOKING DETAILS
-$sql = "SELECT b.id, b.user_id, b.check_in, b.check_out, b.created_at, b.status, b.arrival_status, b.total_price, b.payment_method,
+$sql = "SELECT b.id, b.user_id, b.check_in, b.check_out, b.created_at, b.status, b.arrival_status, b.total_price, b.payment_method, b.booking_source,
                br.room_id, r.price as price_per_night, r.name as room_name,
                bg.first_name, bg.last_name, bg.email,
                u.account_source
@@ -187,16 +187,30 @@ if (!empty($booking['email'])) {
     $notif_msg = "Your booking $ref has been rescheduled to $newCheckIn - $newCheckOut.";
     $source = $booking['account_source'] ?? 'email';
 
-    $n_stmt = $conn->prepare("INSERT INTO guest_notifications (email, account_source, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 'booking', 0, NOW())");
-    $n_stmt->bind_param("ssss", $booking['email'], $source, $notif_title, $notif_msg);
-    $n_stmt->execute();
+    // 🟢 Use centralized notification helper
+    require_once 'notification_helper.php';
+    sendAppNotification($conn, $booking['email'], $source, $notif_title, $notif_msg, 'booking');
 }
 
 // Trigger real-time updates for dashboard
 $conn->query("UPDATE system_updates SET last_updated = CURRENT_TIMESTAMP WHERE category IN ('bookings', 'notifications')");
 
-// Send Email
-if (!empty($booking['email'])) {
+// 🟢 FETCH HOTEL CONTACT INFO FROM DATABASE
+$hotel_email = "support@amvhotel.online";
+$hotel_phone = "+63 901 234 5678";
+$hotel_name = "AMV Hotel";
+$hotel_address = "Mamburao, Occidental Mindoro, Philippines";
+
+$sql_hotel = "SELECT name, email, contact_number FROM admin_user WHERE ID = 1 LIMIT 1";
+$res_hotel = $conn->query($sql_hotel);
+if ($res_hotel && $hrow = $res_hotel->fetch_assoc()) {
+    $hotel_name = $hrow['name'] ?? $hotel_name;
+    $hotel_email = $hrow['email'] ?? $hotel_email;
+    $hotel_phone = $hrow['contact_number'] ?? $hotel_phone;
+}
+
+// Send Email (ONLY FOR WEB/ADMIN GUESTS)
+if (!empty($booking['email']) && ($booking['booking_source'] ?? 'online') !== 'mobile_app') {
     try {
         $mail = new PHPMailer(true);
         $mail->isSMTP();
@@ -215,7 +229,7 @@ if (!empty($booking['email'])) {
             )
         );
 
-        $mail->setFrom('periolarren@gmail.com', "AMV Hotel Reservations");
+        $mail->setFrom('periolarren@gmail.com', "$hotel_name Reservations");
         $mail->addAddress($booking['email'], $booking['first_name'] . ' ' . $booking['last_name']);
 
         $mail->isHTML(true);
@@ -223,21 +237,31 @@ if (!empty($booking['email'])) {
         
         $mail->Body = "
         <div style='font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px; overflow: hidden;'>
-            <div style='background-color: #3B82F6; padding: 20px; text-align: center; color: white;'>
-                <h2 style='margin:0;'>Booking Rescheduled</h2>
+            <div style='background-color: #3B82F6; padding: 25px; text-align: center; color: white;'>
+                <h2 style='margin:0; letter-spacing: 1px;'>Reschedule Confirmation</h2>
             </div>
-            <div style='padding: 20px;'>
-                <p>Dear {$booking['first_name']},</p>
+            <div style='padding: 30px; background-color: #ffffff;'>
+                <p>Dear <strong>{$booking['first_name']}</strong>,</p>
                 <p>Your booking <strong>$ref</strong> has been successfully rescheduled.</p>
-                <div style='background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;'>
+                <div style='background-color: #F3F4F6; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3B82F6;'>
                     <p style='margin: 5px 0;'><strong>New Dates:</strong> $newCheckIn to $newCheckOut</p>
                     <p style='margin: 5px 0;'><strong>Room:</strong> $newRoomName</p>
-                    <p style='margin: 5px 0;'><strong>New Total Price:</strong> ₱" . number_format($newTotal, 2) . "</p>
+                    <p style='margin: 5px 0; color: #111827;'><strong>New Total Price:</strong> ₱" . number_format($newTotal, 2) . "</p>
                 </div>
-                <p>If you have any questions, please contact us.</p>
-            </div>
-            <div style='background-color: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #666;'>
-                &copy; " . date('Y') . " AMV Hotel Management System. All rights reserved.
+                <p>We look forward to hosting you soon!</p>
+                
+                <div style='background-color: #F9FAFB; padding: 15px; border-radius: 6px; border: 1px solid #E5E7EB; margin-top: 30px;'>
+                    <h4 style='margin: 0 0 10px 0; color: #111827;'>$hotel_name Contact Information</h4>
+                    <p style='margin: 5px 0; font-size: 0.9em;'>📍 <strong>Address:</strong> $hotel_address</p>
+                    <p style='margin: 5px 0; font-size: 0.9em;'>📞 <strong>Phone:</strong> $hotel_phone</p>
+                    <p style='margin: 5px 0; font-size: 0.9em;'>📧 <strong>Email:</strong> $hotel_email</p>
+                </div>
+
+                <br>
+                <p style='color: #666; font-size: 0.9em; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;'>
+                    Regards,<br>
+                    <strong>$hotel_name Management</strong>
+                </p>
             </div>
         </div>";
 

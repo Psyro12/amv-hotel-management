@@ -14582,7 +14582,7 @@ $result_orders = $conn->query($sql_orders);
                             icon: 'success',
                             title: 'Check-in Confirmed!',
                             text: data.message,
-                            timer: 3000,
+                            timer: 5000,
                             showConfirmButton: false
                         }).then(() => {
                             refreshBookingTable();

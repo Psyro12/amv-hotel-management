@@ -31,37 +31,36 @@ $email  = isset($input['email']) ? trim($input['email']) : '';
 $name   = isset($input['name']) ? trim(strip_tags($input['name'])) : 'Guest';
 $photo  = $input['photo_url'] ?? ($input['photo'] ?? ''); 
 $source = $input['source'] ?? 'email'; 
+$fcm_token = isset($input['fcm_token']) ? trim($input['fcm_token']) : null;
 
 // 3. Validate
 if (empty($uid) || empty($email)) {
     echo json_encode([
         'success' => false, 
         'message' => 'Missing UID or Email'
-        // 🟢 SECURITY: Removed 'debug_received' to avoid leaking raw data in responses
     ]);
     exit();
 }
 
 // 4. Save to Database
-// Logic preserved: Update name/photo/uid if (email + source) exists.
-$sql = "INSERT INTO users (firebase_uid, name, email, profile_pic, account_source) 
-        VALUES (?, ?, ?, ?, ?) 
+$sql = "INSERT INTO users (firebase_uid, name, email, profile_pic, account_source, fcm_token) 
+        VALUES (?, ?, ?, ?, ?, ?) 
         ON DUPLICATE KEY UPDATE 
         name = VALUES(name), 
         profile_pic = VALUES(profile_pic),
-        firebase_uid = VALUES(firebase_uid)"; 
+        firebase_uid = VALUES(firebase_uid),
+        fcm_token = VALUES(fcm_token)"; 
 
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-    // 🟢 SECURITY: Log real error to server, show generic message to user
     error_log("SQL Prepare Error in User Sync: " . $conn->error);
     echo json_encode(['success' => false, 'message' => 'Internal server error during sync.']);
     exit();
 }
 
-// Bind 5 strings: uid, name, email, photo, source
-$stmt->bind_param("sssss", $uid, $name, $email, $photo, $source);
+// Bind 6 strings
+$stmt->bind_param("ssssss", $uid, $name, $email, $photo, $source, $fcm_token);
 
 if ($stmt->execute()) {
     echo json_encode(['success' => true, 'message' => 'User Synced Successfully']);

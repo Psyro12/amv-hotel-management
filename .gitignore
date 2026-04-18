@@ -5,6 +5,8 @@ db_connect_3.php
 connection.php
 config.php
 .env
+service-account.json
+ADMIN/PHP/service-account.json
 
 # Uploads & Assets
 uploads/

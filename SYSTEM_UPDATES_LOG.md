@@ -44,19 +44,41 @@ This document serves as a permanent record of all functional, structural, and de
 
 ---
 
-## 🗄️ Database Schema Updates
+## 🟢 April 18, 2026 - Push Notification & Real-Time Update Integration
 
-### 1. `bookings` Table
-*   **New Column:** `rejection_reason` (TEXT) - Stores the admin's explanation for a denied booking.
-*   **Flexibility Update:** Changed `status` and `payment_term` from `ENUM` to `VARCHAR(50)` to allow for future status types without schema locks.
+### 1. Centralized Notification System (FCM Integration)
+*   **Centralized Helper:** Migrated all push notification logic to a dedicated `notification_helper.php` file. This ensures consistent handling of database logging and Firebase Cloud Messaging (FCM) across the entire admin dashboard.
+*   **FCM HTTP v1 Support:** Implemented the modern Firebase Cloud Messaging HTTP v1 API for more secure and reliable push notifications to the Guest App.
+*   **Auto-Authentication:** Added a pure PHP OAuth2 token generator to handle Google Service Account authentication without requiring external heavy dependencies.
 
-### 2. `transactions` Table
-*   **Flexibility Update:** Changed `transaction_type` to `VARCHAR(50)`.
-*   **Standardization:** Ensured `status` is `VARCHAR(50)` to accommodate custom strings like "Extended - Fully Paid".
+### 2. Food Order Lifecycle Enhancements
+*   **Real-Time Guest Alerts:** Guests now receive instant push notifications when their food order status changes:
+    *   **Preparing:** Titled "Kitchen Update" to inform guests their meal is being cooked.
+    *   **Being Served:** Updated from "Served" to **"Order Being Served"** with a more accurate message: *"Your food order is being served. Please wait for a moment."* This reflects that the food is currently in transit to their room.
+    *   **Cancelled:** Titled "Order Cancelled" to notify guests of any issues.
+*   **Transaction Sync:** Added logic to `update_order.php` to automatically mark the corresponding transaction as **'Rejected'** if a food order is cancelled. This ensures the financial history stays accurate if a kitchen-level cancellation occurs.
+*   **Dashboard Sync:** Integrated `system_updates` pings to ensure that when an order is updated, the admin dashboard's "Food Orders" and "Notifications" tabs refresh in real-time for all logged-in staff.
 
----
+### 3. Automated Booking & Stay Alerts
+*   **Checkout Due Notifications:** Integrated FCM push notifications into the `trigger_checkout_alerts.php` cron/background task. 
+    *   **Mobile Guests:** Now receive a push notification if they haven't checked out by 12:00 PM, prompting them to visit the front desk for checkout or extension.
+*   **Reschedule Notifications:** Refactored `guest_reschedule.php` to use the centralized `sendAppNotification` helper, ensuring mobile guests receive a push alert confirming their new dates and room assignments.
+*   **Arrival Status Notifications:** Standardized `update_arrival.php` to use the centralized helper for check-ins, check-outs, and rejections, ensuring a unified notification experience for mobile app users.
 
-## 🛠️ Critical Bug Fixes & Refactoring
-*   **Logic Consolidation:** Cleaned up `update_arrival.php` to remove redundant code blocks and multiple `exit` statements that were causing JSON syntax errors in the browser console.
-*   **Syntax Correction:** Resolved `Unexpected token '}'` errors in `dashboard_scripts.js` caused by accidental code duplication during high-volume updates.
-*   **Notification Triggers:** Added `system_updates` table pings to all new transaction points to ensure the dashboard UI refreshes in real-time for all administrators.
+### 4. Technical Refactoring
+*   **Code Consolidation:** Removed manual `INSERT INTO guest_notifications` blocks across multiple files (`update_order.php`, `guest_reschedule.php`, `trigger_checkout_alerts.php`), replacing them with calls to the `sendAppNotification()` function. This significantly reduces code duplication and potential for bugs.
+### 5. Notification Logic Refinements (April 18, 2026 - Part 2)
+*   **Source-Based Routing:** Standardized all booking-related notifications (`approve_booking.php`, `update_arrival.php`, `guest_reschedule.php`) to use `booking_source` as the primary filter:
+    *   **mobile_app:** Exclusively receives real-time FCM push notifications.
+    *   **online / reservation / walk-in:** Receives professional HTML emails via PHPMailer.
+*   **Comprehensive Coverage:** Fixed missing email triggers for "No-Show" and "Stay Extension" actions for web/admin guests in `update_arrival.php`.
+*   **Admin-Created Bookings:** Explicitly ensured that bookings created by administrators (Reservations/Walk-ins) maintain their legacy email confirmation behavior while benefiting from the new high-signal HTML templates.
+### 6. Critical Refinements & Bug Fixes (April 18, 2026 - Part 3)
+*   **JSON Response Stability:** Implemented strict error suppression (`error_reporting(0)`) in `update_arrival.php` and `approve_booking.php`. This prevents background PHP warnings (often caused by SMTP connection notices) from being printed and corrupting the JSON payload, resolving the "Unexpected token <" error in the admin dashboard.
+*   **Logical Status Differentiation:**
+    *   **Denying Pending:** Now correctly labeled as **"Rejected"** in both the database and guest notifications.
+    *   **Cancelling Confirmed:** Now correctly labeled as **"Cancelled"** (status: `cancelled`) to distinguish it from initial rejections.
+    *   **Messaging:** Dynamic template logic ensures guests receive a "Booking Rejected" message if they were never verified, but a "Booking Cancelled" message if their confirmed reservation was terminated.
+*   **Contact Info Integrity:** Restored the database-driven hotel contact block in all email templates. The hotel's address, phone, and support email are now dynamically fetched from the `admin_user` table, ensuring guests always have access to up-to-date support information.
+*   **Mobile Sync Fix (Rescheduling):** Patched a flaw in `guest_reschedule.php` where mobile app users were receiving redundant emails. The file now queries `booking_source` and correctly routes confirmations to **Push Notifications only** for mobile users, while maintaining emails for web/admin users.
+

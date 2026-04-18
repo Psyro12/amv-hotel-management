@@ -47,9 +47,11 @@ if ($id > 0 && !empty($action)) {
         
         if ($stmt->execute()) {
             
-            // 🟢 B. NEW: SEND NOTIFICATION TO GUEST
-            // 1. Get the User ID and Email associated with this Order
-            $sqlGuest = "SELECT o.user_id, u.email, u.account_source 
+            // 🟢 B. NEW: Use centralized notification helper
+            require_once 'notification_helper.php';
+
+            // 1. Get the User ID, Email, and Room associated with this Order
+            $sqlGuest = "SELECT o.user_id, u.email, u.account_source, o.room_number 
                          FROM orders o 
                          JOIN users u ON o.user_id = u.id 
                          WHERE o.id = ?";
@@ -61,7 +63,8 @@ if ($id > 0 && !empty($action)) {
 
             if ($rowGuest = $resGuest->fetch_assoc()) {
                 $email = $rowGuest['email'];
-                $source = $rowGuest['account_source'] ?? 'email'; // Default fallback
+                $source = $rowGuest['account_source'] ?? 'email';
+                $room = $rowGuest['room_number'] ?? 'N/A';
                 
                 // 2. Define Message based on Action
                 $notifTitle = "Order Update";
@@ -69,25 +72,39 @@ if ($id > 0 && !empty($action)) {
                 
                 if ($action === 'prepare') {
                     $notifTitle = "Kitchen Update";
-                    $notifMsg = "Your food order #{$id} is now being prepared by the kitchen.";
+                    $notifMsg = "Your food order #{$id} (Room {$room}) is now being prepared by the kitchen.";
                 } elseif ($action === 'deliver') {
-                    $notifTitle = "Order Served";
-                    $notifMsg = "Your food order #{$id} has been served. Enjoy your meal!";
+                    $notifTitle = "Order Being Served";
+                    $notifMsg = "Your food order #{$id} (Room {$room}) is being served. Please wait for a moment.";
                 } elseif ($action === 'cancel') {
                     $notifTitle = "Order Cancelled";
-                    $notifMsg = "Your food order #{$id} has been cancelled. Please contact staff for details.";
+                    $notifMsg = "Your food order #{$id} (Room {$room}) has been cancelled. Please contact staff for details.";
                 }
 
-                // 3. Insert Notification if message exists
+                // 3. Send Notification (Log + FCM)
                 if ($notifMsg) {
-                    $stmtNotif = $conn->prepare("INSERT INTO guest_notifications (email, account_source, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 'order', 0, NOW())");
-                    $stmtNotif->bind_param("ssss", $email, $source, $notifTitle, $notifMsg);
-                    $stmtNotif->execute();
-                    $stmtNotif->close();
+                    sendAppNotification($conn, $email, $source, $notifTitle, $notifMsg, 'order');
+                }
+
+                // 4. Update Transaction Table if Cancelled
+                if ($action === 'cancel') {
+                    $ref1 = "ORD-" . $id;
+                    $ref2 = "Order #" . $id;
+                    $ref3 = (string)$id;
+
+                    $transSql = "UPDATE transactions SET status = 'Rejected' 
+                                 WHERE transaction_type = 'Food Order' 
+                                 AND (reference_id = ? OR reference_id = ? OR reference_id = ?)";
+                    $transStmt = $conn->prepare($transSql);
+                    $transStmt->bind_param("sss", $ref1, $ref2, $ref3);
+                    $transStmt->execute();
+                    $transStmt->close();
                 }
             }
             $stmtGuest->close();
-            // 🟢 END NOTIFICATION LOGIC
+
+            // 🟢 TRIGGER REAL-TIME UPDATE FOR DASHBOARD
+            $conn->query("UPDATE system_updates SET last_updated = CURRENT_TIMESTAMP WHERE category IN ('food_orders', 'notifications')");
 
             echo json_encode(['status' => 'success']);
         } else {

@@ -54,15 +54,15 @@ if ($res_due) {
             $stmt_ins->execute();
             $stmt_ins->close();
 
+            // 🟢 NEW: Use centralized notification helper
+            require_once 'notification_helper.php';
+
             // B. Guest App Notification
             if (!empty($email)) {
                 $guestTitle = "Checkout Time Passed";
                 $guestMsg = "Standard checkout time is 12:00 PM. Please visit the front desk to check out or extend your stay.";
 
-                $stmt_app = $conn->prepare("INSERT INTO guest_notifications (email, account_source, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 'system', 0, NOW())");
-                $stmt_app->bind_param("ssss", $email, $source, $guestTitle, $guestMsg);
-                $stmt_app->execute();
-                $stmt_app->close();
+                sendAppNotification($conn, $email, $source, $guestTitle, $guestMsg, 'booking');
             }
             $notifications_sent++;
         }

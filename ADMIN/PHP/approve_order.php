@@ -23,6 +23,7 @@ if (!isset($_POST['id']) || !isset($_POST['action'])) {
 
 $id = intval($_POST['id']);
 $action = $_POST['action']; // 'approve' or 'reject'
+$reason = isset($_POST['reason']) ? trim($_POST['reason']) : 'No reason provided.';
 
 // 3. Fetch Order Details
 $sql = "SELECT o.id, o.room_number, u.email, u.account_source, o.payment_method 
@@ -63,13 +64,13 @@ if ($action === 'approve') {
 
 } else {
     // 🔴 REJECT LOGIC
-    $orderStatus = 'Cancelled';
+    $orderStatus = 'Rejected';
     
-    // 🔴 FORCE STATUS TO 'Cancelled'
-    $transactionStatus = 'Cancelled'; 
+    // 🔴 FORCE STATUS TO 'Rejected'
+    $transactionStatus = 'Rejected'; 
 
     $notifTitle = "Order Rejected";
-    $notifMsg = "Your food order for Room " . $order['room_number'] . " has been cancelled. Please contact front desk.";
+    $notifMsg = "Your food order for Room " . $order['room_number'] . " has been rejected. Reason: $reason";
     $successMsg = "Order rejected.";
 }
 
@@ -89,19 +90,23 @@ $transStmt->execute();
 $transStmt->close();
 
 // 6. Update ORDER Table
-$updateStmt = $conn->prepare("UPDATE orders SET status = ? WHERE id = ?");
-$updateStmt->bind_param("si", $orderStatus, $id);
+if ($action === 'reject') {
+    $updateStmt = $conn->prepare("UPDATE orders SET status = ?, rejection_reason = ? WHERE id = ?");
+    $updateStmt->bind_param("ssi", $orderStatus, $reason, $id);
+} else {
+    $updateStmt = $conn->prepare("UPDATE orders SET status = ? WHERE id = ?");
+    $updateStmt->bind_param("si", $orderStatus, $id);
+}
 
 if ($updateStmt->execute()) {
     
-    // 7. Send Notification
+    // 🟢 NEW: Use centralized notification helper
+    require_once 'notification_helper.php';
+
+    // 7. Send Notification (Log + FCM)
     if (!empty($order['email'])) {
         $source = $order['account_source'] ?? 'email'; 
-        
-        $notifStmt = $conn->prepare("INSERT INTO guest_notifications (email, account_source, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 'order', 0, NOW())");
-        $notifStmt->bind_param("ssss", $order['email'], $source, $notifTitle, $notifMsg);
-        $notifStmt->execute();
-        $notifStmt->close();
+        sendAppNotification($conn, $order['email'], $source, $notifTitle, $notifMsg, 'order');
     }
 
     // 🟢 TRIGGER REAL-TIME UPDATE FOR DASHBOARD
