@@ -10456,6 +10456,134 @@
                 });
         };
 
+        window.handleCancelAction = function(requestId, action) {
+            if (action === 'approve') {
+                Swal.fire({
+                    title: 'Approve Cancellation?',
+                    text: "This will cancel the booking and notify the guest. This action cannot be undone.",
+                    icon: 'warning',
+                    iconColor: '#B88E2F',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, Approve',
+                    cancelButtonText: 'No, Keep Booking',
+                    confirmButtonColor: '#B88E2F',
+                    cancelButtonColor: '#6B7280',
+                    reverseButtons: true,
+                    customClass: {
+                        container: 'amv-swal-container',
+                        popup: 'amv-swal-popup',
+                        title: 'amv-swal-title',
+                        htmlContainer: 'amv-swal-content',
+                        confirmButton: 'amv-swal-confirm-btn',
+                        cancelButton: 'amv-swal-cancel-btn'
+                    },
+                    showClass: { popup: 'swal-win11-show' },
+                    hideClass: { popup: 'swal-win11-hide' },
+                    didOpen: () => {
+                        const container = Swal.getContainer();
+                        if (container) container.style.zIndex = '9999999';
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        processCancellationRequest(requestId, 'approve');
+                    }
+                });
+            } else if (action === 'reject') {
+                Swal.fire({
+                    title: 'Reject Request',
+                    icon: 'warning',
+                    iconColor: '#B88E2F',
+                    width: '450px',
+                    html: `
+                        <div style="text-align: left; font-family: 'Montserrat', sans-serif;">
+                            <p style="font-size: 0.85rem; color: #666; margin-bottom: 20px; line-height:1.5;">Select a common reason below or type a custom one. Selecting a button will auto-fill the notes.</p>
+
+                            <div id="rejection-button-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px;">
+                                <button type="button" class="reason-btn" data-reason="Cancellation policy period has passed. Request denied." onclick="toggleRejectionReason(this)">Policy Passed</button>
+                                <button type="button" class="reason-btn" data-reason="Invalid booking reference or guest identification." onclick="toggleRejectionReason(this)">Invalid Info</button>
+                                <button type="button" class="reason-btn" data-reason="Booking is already in-house and cannot be cancelled." onclick="toggleRejectionReason(this)">In-House</button>
+                                <button type="button" class="reason-btn" data-reason="Incomplete documentation for refund processing." onclick="toggleRejectionReason(this)">Incomplete</button>
+                            </div>
+
+                            <label class="ab-label" style="font-size:0.7rem; color:#999; margin-bottom:8px; letter-spacing:0.5px; text-transform:uppercase; font-weight:700;">Rejection Reason / Message</label>
+                            <textarea id="swal-rejection-custom" class="ab-input" rows="4" 
+                                placeholder="Select a reason above or type here..." 
+                                style="width:100%; border-radius:12px; border:1px solid #E5E7EB; padding:12px; font-family:inherit; font-size:0.9rem; box-sizing:border-box; resize:none;"></textarea>
+                        </div>
+                        <style>
+                            .reason-btn {
+                                background: #F8F9FA;
+                                border: 1px solid #E9ECEF;
+                                border-radius: 10px;
+                                padding: 10px 8px;
+                                font-size: 0.75rem;
+                                font-weight: 700;
+                                color: #495057;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                                font-family: 'Montserrat', sans-serif;
+                                text-transform: uppercase;
+                                letter-spacing: 0.5px;
+                            }
+                            .reason-btn:hover { background: #E9ECEF; border-color: #B88E2F; color: #B88E2F; }
+                            .reason-btn.active {
+                                background: #B88E2F;
+                                border-color: #B88E2F;
+                                color: #FFFFFF;
+                                box-shadow: 0 4px 6px -1px rgba(184, 142, 47, 0.2);
+                            }
+                        </style>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: 'Confirm Rejection',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#B88E2F',
+                    cancelButtonColor: '#6B7280',
+                    reverseButtons: true,
+                    customClass: {
+                        container: 'amv-swal-container',
+                        popup: 'amv-swal-popup',
+                        title: 'amv-swal-title',
+                        htmlContainer: 'amv-swal-content',
+                        confirmButton: 'amv-swal-confirm-btn',
+                        cancelButton: 'amv-swal-cancel-btn'
+                    },
+                    showClass: { popup: 'swal-win11-show' },
+                    hideClass: { popup: 'swal-win11-hide' },
+                    didOpen: () => {
+                        const container = Swal.getContainer();
+                        if (container) container.style.zIndex = '9999999';
+
+                        const textarea = document.getElementById('swal-rejection-custom');
+
+                        window.toggleRejectionReason = (btn) => {
+                            const isAlreadyActive = btn.classList.contains('active');
+                            const reasonText = btn.getAttribute('data-reason');
+                            document.querySelectorAll('.reason-btn').forEach(b => b.classList.remove('active'));
+
+                            if (isAlreadyActive) {
+                                if (textarea.value.trim() === reasonText) textarea.value = '';
+                            } else {
+                                btn.classList.add('active');
+                                textarea.value = reasonText;
+                            }
+                        };
+                    },
+                    preConfirm: () => {
+                        const note = document.getElementById('swal-rejection-custom').value;
+                        if (!note) {
+                            Swal.showValidationMessage('You need to provide a reason for rejection!');
+                            return false;
+                        }
+                        return note;
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        processCancellationRequest(requestId, 'reject', result.value);
+                    }
+                });
+            }        };
+
         window.viewCancellationRequest = function(requestId) {
             Swal.fire({
                 title: 'Handle Cancellation Request',

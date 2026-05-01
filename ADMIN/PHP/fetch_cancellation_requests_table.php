@@ -26,10 +26,11 @@ try {
 
     $where = " WHERE cr.status = '$status_filter' ";
 
-    // Fetch Data with correct column names (room_names is missing in bookings, so we'll use a subquery or join)
+    // Fetch Data with Room Names
     $sql = "SELECT cr.*, b.booking_reference, b.booking_source,
                    bg.first_name, bg.last_name, bg.email,
-                   b.check_in, b.check_out, b.total_price
+                   b.check_in, b.check_out, b.total_price,
+                   (SELECT GROUP_CONCAT(room_name SEPARATOR ', ') FROM booking_rooms WHERE booking_id = b.id) as room_names
             FROM cancellation_requests cr
             JOIN bookings b ON cr.booking_id = b.id
             LEFT JOIN booking_guests bg ON b.id = bg.booking_id
@@ -48,13 +49,14 @@ try {
     if ($result->num_rows > 0) {
         while ($row = $result->fetch_assoc()) {
             $guestName = $row['first_name'] . ' ' . $row['last_name'];
-            $created_at = date('M d, Y h:i A', strtotime($row['created_at']));
+            $created_at = date('M d, Y', strtotime($row['created_at']));
             $check_in = date('M d', strtotime($row['check_in']));
-            $check_out = date('M d', strtotime($row['check_out']));
+            $check_out = date('M d, Y', strtotime($row['check_out']));
             $ref = $row['booking_reference'];
             $id = $row['id'];
             $reason = htmlspecialchars($row['reason']);
             $total = number_format($row['total_price'], 2);
+            $room_names = $row['room_names'] ?: 'Unknown Room';
             
             $sourceIcon = ($row['booking_source'] === 'mobile_app') ? '<i class="fas fa-mobile-alt"></i>' : '<i class="fas fa-globe"></i>';
 
@@ -69,9 +71,13 @@ try {
                     $guestName
                 </div>
                 
-                <div style='display:flex; gap:10px; font-size:0.85rem; color:#666; margin-bottom:12px;'>
+                <div style='display:flex; gap:10px; font-size:0.85rem; color:#666; margin-bottom:8px;'>
                     <span>$sourceIcon {$row['booking_source']}</span>
                     <span><i class='fas fa-calendar-alt'></i> $check_in - $check_out</span>
+                </div>
+
+                <div style='font-size:0.85rem; color:#3B82F6; background:#EFF6FF; padding:5px 10px; border-radius:4px; margin-bottom:12px; font-weight:600; display:inline-block;'>
+                    <i class='fas fa-bed'></i> $room_names
                 </div>
 
                 <div style='background:#fef9ef; border-left:4px solid #B88E2F; padding:12px; border-radius:6px; margin-bottom:15px;'>
@@ -80,13 +86,16 @@ try {
                 </div>
 
                 <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;'>
-                    <span style='font-size:0.85rem; color:#888;'>Total Refundable:</span>
+                    <span style='font-size:0.85rem; color:#888;'>Refundable:</span>
                     <strong style='font-size:1.1rem; color:#333;'>₱$total</strong>
                 </div>
 
-                <div class='drawer-actions'>
-                    <button class='ab-submit-btn' style='background:#dc3545; padding:10px;' onclick='viewCancellationRequest($id)'>
-                        Manage Request
+                <div class='drawer-actions' style='display:flex; gap:8px;'>
+                    <button class='ab-submit-btn' style='background:#EF4444; flex:1; padding:10px;' onclick='handleCancelAction($id, \"reject\")'>
+                        Reject
+                    </button>
+                    <button class='ab-submit-btn' style='background:#28a745; flex:2; padding:10px;' onclick='handleCancelAction($id, \"approve\")'>
+                        Approve Request
                     </button>
                 </div>
             </div>";
