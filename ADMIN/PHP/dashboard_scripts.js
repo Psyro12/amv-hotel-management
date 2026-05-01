@@ -4488,6 +4488,7 @@
             let guestsLoaded = false;
             let foodLoaded = false;
             let transactionsLoaded = false;
+            let cancellationRequestsLoaded = false;
 
             // --- CLICK HANDLER ---
             document.querySelectorAll('.nav-menu .nav-item').forEach(link => {
@@ -4525,6 +4526,9 @@
                     } else if (pageId === 'bookings') {
                         refreshBookingTable(bookingsLoaded);
                         bookingsLoaded = true;
+                    } else if (pageId === 'cancellation-requests') {
+                        loadCancellationRequests(cancellationRequestsLoaded);
+                        cancellationRequestsLoaded = true;
                     } else if (pageId === 'food-ordered') {
                         refreshFoodTable(foodLoaded);
                         foodLoaded = true;
@@ -4753,6 +4757,12 @@
                         // NEW: Update late arrival alert
                         if (data.counts.late_arrivals !== undefined) {
                             updateLateArrivalAlert(data.counts.late_arrivals);
+                        }
+
+                        // NEW: Update cancellation pulse
+                        const cancelPulse = document.getElementById('cancelPulse');
+                        if (cancelPulse && data.counts.cancellation_requests !== undefined) {
+                            cancelPulse.style.display = (data.counts.cancellation_requests > 0) ? 'block' : 'none';
                         }
                     }
                 })
@@ -8978,6 +8988,12 @@
             if (orderDrawer && orderDrawer.classList.contains('open')) {
                 toggleOrderDrawer(); // Uses existing toggle logic
             }
+
+            // 4. Check Cancellation Drawer
+            const cancellationDrawer = document.getElementById('cancellationDrawer');
+            if (cancellationDrawer && cancellationDrawer.classList.contains('open')) {
+                toggleCancellationDrawer(); // Uses existing toggle logic
+            }
         }
 
         // --- UPDATED PROCESS ORDER FUNCTION (With Custom Rejection Modal) ---
@@ -10393,5 +10409,127 @@
             }
             textarea.focus();
         };
+
+        // --- CANCELLATION REQUESTS DRAWER LOGIC ---
+        let isCancelDrawerBusy = false;
+
+        window.toggleCancellationDrawer = function() {
+            if (isCancelDrawerBusy) return;
+
+            const drawer = document.getElementById('cancellationDrawer');
+            const overlay = document.getElementById('drawerOverlay');
+            const isOpen = drawer.classList.contains('open');
+
+            if (isOpen) {
+                drawer.classList.remove('open');
+                overlay.classList.remove('show');
+            } else {
+                drawer.classList.add('open');
+                overlay.classList.add('show');
+                loadCancellationRequests();
+            }
+        };
+
+        window.loadCancellationRequests = function() {
+            const drawerBody = document.getElementById('cancellationDrawerBody');
+            if (!drawerBody) return;
+
+            isDrawerBusy = true;
+            drawerBody.style.opacity = '0.5';
+
+            fetch('fetch_cancellation_requests_table.php?status=pending')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        drawerBody.innerHTML = data.html;
+                    } else {
+                        drawerBody.innerHTML = `<div style="padding:20px; text-align:center; color:red;">${data.message}</div>`;
+                    }
+                })
+                .catch(err => {
+                    console.error("Fetch Error:", err);
+                    drawerBody.innerHTML = `<div style="padding:20px; text-align:center; color:red;">Error loading requests.</div>`;
+                })
+                .finally(() => {
+                    drawerBody.style.opacity = '1';
+                    isDrawerBusy = false;
+                });
+        };
+
+        window.viewCancellationRequest = function(requestId) {
+            Swal.fire({
+                title: 'Handle Cancellation Request',
+                text: "Do you want to approve or reject this guest cancellation request?",
+                icon: 'question',
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: 'Approve',
+                denyButtonText: 'Reject',
+                cancelButtonText: 'Close',
+                confirmButtonColor: '#28a745',
+                denyButtonColor: '#dc3545',
+                customClass: {
+                    confirmButton: 'amv-swal-confirm-btn',
+                    denyButton: 'amv-swal-cancel-btn',
+                    cancelButton: 'amv-swal-close-btn'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    processCancellationRequest(requestId, 'approve');
+                } else if (result.isDenied) {
+                    Swal.fire({
+                        title: 'Reject Request',
+                        input: 'textarea',
+                        inputLabel: 'Reason for rejection',
+                        inputPlaceholder: 'Type your reason here...',
+                        showCancelButton: true,
+                        confirmButtonText: 'Confirm Reject',
+                        confirmButtonColor: '#dc3545',
+                    }).then((reasonRes) => {
+                        if (reasonRes.isConfirmed) {
+                            if (reasonRes.value) {
+                                processCancellationRequest(requestId, 'reject', reasonRes.value);
+                            } else {
+                                Swal.fire('Error', 'Rejection reason is required.', 'error');
+                            }
+                        }
+                    });
+                }
+            });
+        };
+
+        window.processCancellationRequest = function(requestId, action, reason = '') {
+            const formData = new FormData();
+            formData.append('request_id', requestId);
+            formData.append('action', action);
+            formData.append('admin_reason', reason);
+
+            fetch('handle_cancellation_request.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    if (typeof amvToast !== 'undefined') {
+                        amvToast.fire({ icon: 'success', title: data.message });
+                    } else {
+                        Swal.fire('Success', data.message, 'success');
+                    }
+                    loadCancellationRequests(); // Refresh drawer
+                    if (typeof refreshBookingTable === 'function') {
+                        refreshBookingTable(true);
+                    }
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            })
+            .catch(err => {
+                console.error("Process Error:", err);
+                Swal.fire('Error', 'Failed to process request.', 'error');
+            });
+        };
+
+
 
 

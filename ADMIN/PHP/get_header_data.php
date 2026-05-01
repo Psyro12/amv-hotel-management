@@ -61,8 +61,18 @@ if ($res_msg) {
 }
 
 // 3. Count Unread
-$count_notif = $conn->query("SELECT COUNT(*) as c FROM system_notifications WHERE is_read = 0")->fetch_assoc()['c'];
-$count_msg = $conn->query("SELECT COUNT(*) as c FROM guest_messages WHERE is_read = 0")->fetch_assoc()['c'];
+$count_notif = $conn->query("SELECT COUNT(*) as c FROM system_notifications WHERE is_read = 0")->fetch_assoc()['c'] ?? 0;
+$count_msg = $conn->query("SELECT COUNT(*) as c FROM guest_messages WHERE is_read = 0")->fetch_assoc()['c'] ?? 0;
+
+// Safely count cancellation requests
+$count_cancel = 0;
+$check_cancel = $conn->query("SHOW TABLES LIKE 'cancellation_requests'");
+if ($check_cancel && $check_cancel->num_rows > 0) {
+    $res_cancel = $conn->query("SELECT COUNT(*) as c FROM cancellation_requests WHERE status = 'pending'");
+    if ($res_cancel) {
+        $count_cancel = $res_cancel->fetch_assoc()['c'] ?? 0;
+    }
+}
 
 echo json_encode([
     'status' => 'success',
@@ -71,7 +81,8 @@ echo json_encode([
     'counts' => [
         'notifications' => $count_notif, 
         'messages' => $count_msg,
-        'late_arrivals' => $lateGuestCount
+        'late_arrivals' => $lateGuestCount,
+        'cancellation_requests' => $count_cancel
     ]
 ]);
 ?>

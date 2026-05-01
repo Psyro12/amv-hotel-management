@@ -79,6 +79,7 @@ $sql = "SELECT
             b.arrival_status,
             b.created_at,
             b.is_read_by_user,
+            b.cancel_requested,
             GROUP_CONCAT(br.room_name SEPARATOR ', ') as room_name,
             GROUP_CONCAT(br.room_name SEPARATOR ', ') as room_names
         FROM bookings b
@@ -88,19 +89,23 @@ $sql = "SELECT
 // Filter Logic
 if ($type === 'active') {
     // Show current stays OR future bookings
+    // Status should NOT be cancelled, rejected, or no-show
+    // Arrival status should NOT be checked_out
     $sql .= " AND (
-                (b.check_out >= CURDATE() AND b.status != 'cancelled')
+                (b.check_out >= CURDATE() AND b.status NOT IN ('cancelled', 'rejected', 'no-show'))
                 OR 
-                b.arrival_status = 'in_house'
-              ) ";
+                b.arrival_status IN ('in_house', 'in house')
+              ) 
+              AND b.arrival_status NOT IN ('checked_out', 'Checked Out', 'completed', 'no_show', 'no-show', 'rejected', 'cancelled') ";
 } else {
     // History
+    // Show past bookings OR cancelled/no-show/completed/checked-out bookings
     $sql .= " AND (
-                (b.check_out < CURDATE() AND b.arrival_status != 'in_house')
+                (b.check_out < CURDATE() AND b.arrival_status NOT IN ('in_house', 'in house'))
                 OR 
-                b.status IN ('cancelled', 'no-show', 'completed') 
+                b.status IN ('cancelled', 'rejected', 'no-show', 'completed') 
                 OR 
-                b.arrival_status = 'Checked Out'
+                b.arrival_status IN ('checked_out', 'Checked Out', 'completed', 'no_show', 'no-show', 'rejected', 'cancelled')
               ) ";
 }
 

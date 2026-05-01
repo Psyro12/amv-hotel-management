@@ -1015,6 +1015,14 @@ $result_orders = $conn->query($sql_orders);
                     <!-- </div> -->
 
                     <div class="action-wrapper">
+                        <button class="icon-btn btn-pending" onclick="toggleCancellationDrawer()"
+                            style="color: #dc3545; border-color: #fecaca; background-color: #fef2f2;">
+                            <i class="fas fa-user-times"></i>
+                            <span id="cancelPulse" class="pulse-dot" style="display:none; background-color: #dc3545;"></span>
+                        </button>
+                    </div>
+
+                    <div class="action-wrapper">
                         <button class="icon-btn btn-pending" onclick="toggleOrderDrawer()"
                             style="color: #EA580C; border-color: #FED7AA; background-color: #FFF7ED;">
                             <i class="fas fa-utensils"></i>
@@ -2015,6 +2023,52 @@ $result_orders = $conn->query($sql_orders);
                         </div>
                     </div>
                 </div>
+                <!-- Cancellation Requests Page -->
+                <div class="page" id="cancellation-requests" style="overflow-y: auto;">
+                    <div class="p-3" style="display: flex; flex-direction: column; height: 100%;">
+                        <div class="bookings-toolbar">
+                            <h2 class="fs-md">Cancellation Requests</h2>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <select id="cancelReqFilter" class="ab-select" style="width:150px;" onchange="loadCancellationRequests()">
+                                    <option value="pending">Pending</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                                <button class="btn-primary" onclick="loadCancellationRequests()"
+                                    style="color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer;">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="booking-table-container">
+                            <table class="booking-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ref / ID</th>
+                                        <th>Guest Name</th>
+                                        <th>Reason</th>
+                                        <th>Dates</th>
+                                        <th>Requested On</th>
+                                        <th>Status</th>
+                                        <th style="text-align: center;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cancellationRequestsTableBody">
+                                    <tr>
+                                        <td colspan="7" style="padding: 100px 0; text-align: center;">
+                                            <div class="amv-loader-container">
+                                                <div class="amv-loader"></div>
+                                                <div style="font-weight: 600; font-size: 1.1rem; color: #B88E2F;">Loading Requests...</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="page" id="food-ordered" style="overflow-y: auto;">
                     <div class="p-3" style="display: flex; flex-direction: column; height: 100%;">
 
@@ -4592,6 +4646,26 @@ $result_orders = $conn->query($sql_orders);
                 <div class="amv-loader-container">
                     <div class="amv-loader"></div>
                     <div style="font-weight: 600; font-size: 1.1rem; letter-spacing: 0.5px; color: #B88E2F;">Loading Orders...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="side-drawer" id="cancellationDrawer">
+        <div class="drawer-header">
+            <div>
+                <h3 style="margin:0; font-size:1.1rem; color:#333;">Cancellation Requests</h3>
+                <small style="color:#666;">Review and process guest requests</small>
+            </div>
+            <button onclick="toggleCancellationDrawer()"
+                style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+
+        <div class="drawer-body" id="cancellationDrawerBody">
+            <div style="text-align:center; padding:100px 0;">
+                <div class="amv-loader-container">
+                    <div class="amv-loader"></div>
+                    <div style="font-weight: 600; font-size: 1.1rem; letter-spacing: 0.5px; color: #B88E2F;">Loading Requests...</div>
                 </div>
             </div>
         </div>
